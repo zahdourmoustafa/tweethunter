@@ -16,7 +16,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Welcome back!</h1>
         <p className="text-muted-foreground">
-          Ready to create some amazing content? Let's get started.
+          Ready to create some amazing content? Let&apos;s get started.
         </p>
       </div>
 

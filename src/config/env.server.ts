@@ -6,9 +6,10 @@ function validateServerEnv() {
   const requiredVars = [
     'DATABASE_URL',
     'BETTER_AUTH_SECRET', 
+    'TWITTER_CLIENT_ID',
     'TWITTER_CLIENT_SECRET',
     'OPENAI_API_KEY',
-    'TWITTER_BEARER_TOKEN'
+    'TWITTERAPI_IO_API_KEY'
   ];
 
   const missing = requiredVars.filter(key => !process.env[key]);
@@ -25,9 +26,10 @@ function validateServerEnv() {
   return {
     DATABASE_URL: process.env.DATABASE_URL!,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
+    TWITTER_CLIENT_ID: process.env.TWITTER_CLIENT_ID!,
     TWITTER_CLIENT_SECRET: process.env.TWITTER_CLIENT_SECRET!,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
-    TWITTER_BEARER_TOKEN: process.env.TWITTER_BEARER_TOKEN!,
+    TWITTERAPI_IO_API_KEY: process.env.TWITTERAPI_IO_API_KEY!,
     NODE_ENV: (process.env.NODE_ENV as "development" | "production" | "test") || "development",
   };
 }

@@ -22,14 +22,16 @@ export const auth = betterAuth({
     },
   },
   
+  plugins: [
+    nextCookies(), // Required for Next.js integration
+  ],
+  
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // 1 day
   },
-
-  plugins: [nextCookies()], // Required for Next.js integration
 });
 
 // Export types for client-side usage
 export type Session = typeof auth.$Infer.Session;
-export type User = typeof auth.$Infer.User;
+export type User = typeof auth.$Infer.Session.user;

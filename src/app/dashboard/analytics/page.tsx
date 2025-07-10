@@ -26,12 +26,12 @@ export default function AnalyticsPage() {
           </div>
           <CardTitle>Analytics Dashboard Coming Soon</CardTitle>
           <CardDescription>
-            We're building comprehensive analytics to track your content success
+            We&apos;re building comprehensive analytics to track your content success
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <h4 className="font-medium">What's coming:</h4>
+            <h4 className="font-medium">What&apos;s coming:</h4>
             <ul className="text-sm text-muted-foreground space-y-1">
               <li>• Content performance tracking</li>
               <li>• AI tool usage statistics</li>

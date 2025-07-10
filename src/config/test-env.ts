@@ -8,24 +8,30 @@
 import { config } from "dotenv";
 config(); // Load .env file for testing
 
-import { env, isDevelopment, isProduction } from "./env";
+import { env } from './env'
 
-console.log("🔍 Testing environment configuration...\n");
-
-try {
-  console.log("✅ Environment variables loaded successfully!");
-  console.log(`📍 Environment: ${env.NODE_ENV}`);
-  console.log(`🔧 Development mode: ${isDevelopment}`);
-  console.log(`🚀 Production mode: ${isProduction}`);
-  console.log(`🔗 Auth URL: ${env.BETTER_AUTH_URL}`);
-  console.log(`🗄️  Database configured: ${env.DATABASE_URL ? "✅" : "❌"}`);
-  console.log(`🐦 Twitter OAuth configured: ${env.TWITTER_CLIENT_ID ? "✅" : "❌"}`);
-  console.log(`🤖 OpenAI configured: ${env.OPENAI_API_KEY ? "✅" : "❌"}`);
-  console.log(`📡 Twitter API configured: ${env.TWITTER_BEARER_TOKEN ? "✅" : "❌"}`);
+export function testEnv() {
+  console.log('🧪 Testing environment configuration...')
   
-  console.log("\n🎉 All environment variables are properly configured!");
-} catch (error) {
-  console.error("❌ Environment validation failed:");
-  console.error(error);
-  process.exit(1);
+  // Test server environment
+  console.log(`✅ Database: ${env.DATABASE_URL ? "configured" : "❌ missing"}`)
+  console.log(`✅ Better Auth Secret: ${env.BETTER_AUTH_SECRET ? "configured" : "❌ missing"}`)
+  console.log(`✅ OpenAI API Key: ${env.OPENAI_API_KEY ? "configured" : "❌ missing"}`)
+  console.log(`✅ TwitterAPI.io Key: ${env.TWITTERAPI_IO_API_KEY ? "configured" : "❌ missing"}`)
+  
+  // Test client environment  
+  console.log(`✅ Better Auth URL: ${env.BETTER_AUTH_URL}`)
+  console.log(`✅ Twitter Client ID: ${env.TWITTER_CLIENT_ID ? "configured" : "❌ missing"}`)
+  console.log(`✅ Environment: ${env.NODE_ENV}`)
+  
+  // Summary
+  const serverConfigured = !!(env.DATABASE_URL && env.BETTER_AUTH_SECRET && env.OPENAI_API_KEY && env.TWITTERAPI_IO_API_KEY)
+  const clientConfigured = !!(env.BETTER_AUTH_URL && env.TWITTER_CLIENT_ID)
+  
+  console.log(`\n📊 Configuration Status:`)
+  console.log(`📡 Server: ${serverConfigured ? "✅ Ready" : "❌ Missing required vars"}`)
+  console.log(`🌐 Client: ${clientConfigured ? "✅ Ready" : "❌ Missing required vars"}`)
+  console.log(`🎯 Overall: ${serverConfigured && clientConfigured ? "✅ All systems go!" : "❌ Configuration incomplete"}`)
+  
+  return serverConfigured && clientConfigured
 }

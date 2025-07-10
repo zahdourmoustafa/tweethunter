@@ -15,7 +15,7 @@ function validateServerEnv() {
     'BETTER_AUTH_SECRET', 
     'TWITTER_CLIENT_SECRET',
     'OPENAI_API_KEY',
-    'TWITTER_BEARER_TOKEN'
+    'TWITTERAPI_IO_API_KEY'
   ];
 
   const missing = requiredVars.filter(key => !process.env[key]);
@@ -34,7 +34,7 @@ function validateServerEnv() {
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
     TWITTER_CLIENT_SECRET: process.env.TWITTER_CLIENT_SECRET!,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
-    TWITTER_BEARER_TOKEN: process.env.TWITTER_BEARER_TOKEN!,
+    TWITTERAPI_IO_API_KEY: process.env.TWITTERAPI_IO_API_KEY!,
   };
 }
 

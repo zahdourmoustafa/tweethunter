@@ -30,12 +30,6 @@ export default function TopicSelectionPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // Redirect if user already has topics
-  if (user?.topics && user.topics.length > 0) {
-    router.push("/dashboard");
-    return null;
-  }
-
   // Show loading if auth is still loading
   if (isLoading) {
     return (

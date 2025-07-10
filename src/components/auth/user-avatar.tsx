@@ -27,11 +27,11 @@ export function UserAvatar() {
       <DropdownMenuTrigger asChild>
         <Avatar className="h-8 w-8 cursor-pointer">
           <AvatarImage 
-            src={user.avatarUrl || undefined} 
-            alt={user.displayName || user.username || "User"} 
+            src={user.image || undefined} 
+            alt={user.name || "User"} 
           />
           <AvatarFallback>
-            {getInitials(user.displayName || user.username || "User")}
+            {getInitials(user.name || "User")}
           </AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
@@ -40,10 +40,10 @@ export function UserAvatar() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
-              {user.displayName || user.username}
+              {user.name}
             </p>
             <p className="text-xs leading-none text-muted-foreground">
-              @{user.username}
+              {user.email}
             </p>
           </div>
         </DropdownMenuLabel>

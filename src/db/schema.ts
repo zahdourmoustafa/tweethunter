@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, boolean, integer, jsonb, varchar, index } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, boolean, jsonb, varchar, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 // Better-auth expects these specific table names and structures
@@ -165,7 +165,7 @@ export const analytics = pgTable("analytics", {
     success?: boolean;
     errorMessage?: string;
     responseTime?: number;
-    [key: string]: any;
+    [key: string]: unknown;
   }>(),
   sessionId: text("session_id"),
   userAgent: text("user_agent"),

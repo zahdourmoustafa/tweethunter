@@ -13,7 +13,6 @@ export const {
   signIn,
   signOut,
   signUp,
-  useActiveSession,
 } = authClient;
 
 // Custom hooks for better UX
@@ -29,7 +28,7 @@ export function useAuth() {
   };
 }
 
-// Twitter-specific sign in function
+// Twitter-specific sign in function using social provider
 export async function signInWithTwitter() {
   try {
     await signIn.social({
@@ -45,9 +44,9 @@ export async function signInWithTwitter() {
 // Sign out function with redirect
 export async function signOutUser() {
   try {
-    await signOut({
-      redirectTo: "/",
-    });
+    await signOut();
+    // Manually redirect after sign out
+    window.location.href = "/";
   } catch (error) {
     console.error("Sign-out error:", error);
     throw error;

@@ -3,7 +3,7 @@
 import { useAuth } from "@/lib/auth-client";
 import { LoginButton } from "@/components/auth/login-button";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Twitter, Zap, Target, BarChart3, Shield } from "lucide-react";
 import Link from "next/link";
@@ -25,7 +25,7 @@ export default function HomePage() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center space-y-4">
           <h1 className="text-2xl font-bold">Welcome back!</h1>
-          <p className="text-muted-foreground">You're already signed in.</p>
+          <p className="text-muted-foreground">You&apos;re already signed in.</p>
           <Button asChild>
             <Link href="/dashboard">Go to Dashboard</Link>
           </Button>

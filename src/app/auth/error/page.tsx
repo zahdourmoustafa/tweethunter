@@ -10,15 +10,16 @@ export const metadata: Metadata = {
 };
 
 interface AuthErrorPageProps {
-  searchParams: {
+  searchParams: Promise<{
     error?: string;
     error_description?: string;
-  };
+  }>;
 }
 
-export default function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
-  const error = searchParams.error;
-  const errorDescription = searchParams.error_description;
+export default async function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
+  const params = await searchParams;
+  const error = params.error;
+  const errorDescription = params.error_description;
 
   const getErrorMessage = (error?: string) => {
     switch (error) {
@@ -46,7 +47,7 @@ export default function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
             Authentication Failed
           </h1>
           <p className="text-sm text-muted-foreground">
-            We couldn't sign you in to your account
+            We couldn&apos;t sign you in to your account
           </p>
         </div>
 

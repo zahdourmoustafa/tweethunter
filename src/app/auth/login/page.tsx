@@ -35,7 +35,7 @@ export default function LoginPage() {
           <div className="relative z-20 mt-auto">
             <blockquote className="space-y-2">
               <p className="text-lg">
-                "TweetInspire has transformed how I create content. The AI tools help me turn viral tweets into authentic, engaging posts that resonate with my audience."
+                &quot;TweetInspire has transformed how I create content. The AI tools help me turn viral tweets into authentic, engaging posts that resonate with my audience.&quot;
               </p>
               <footer className="text-sm">Sofia Davis, Content Creator</footer>
             </blockquote>

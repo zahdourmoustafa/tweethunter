@@ -5,13 +5,6 @@ import { clientEnv } from "@/config/env.client";
 
 export const authClient = createAuthClient({
   baseURL: clientEnv.BETTER_AUTH_URL,
-  
-  // Configure social providers
-  socialProviders: {
-    twitter: {
-      enabled: true,
-    },
-  },
 });
 
 // Export hooks for easy usage

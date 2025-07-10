@@ -1,12 +1,15 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { serverEnv } from "@/config/env.server";
+import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
+  
+  secret: process.env.BETTER_AUTH_SECRET!,
+  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
   
   emailAndPassword: {
     enabled: false, // We only want Twitter OAuth
@@ -15,7 +18,7 @@ export const auth = betterAuth({
   socialProviders: {
     twitter: {
       clientId: process.env.TWITTER_CLIENT_ID!,
-      clientSecret: serverEnv.TWITTER_CLIENT_SECRET,
+      clientSecret: process.env.TWITTER_CLIENT_SECRET!,
     },
   },
   
@@ -23,11 +26,8 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // 1 day
   },
-  
-  advanced: {
-    useSecureCookies: serverEnv.NODE_ENV === "production",
-    generateId: () => crypto.randomUUID(),
-  },
+
+  plugins: [nextCookies()], // Required for Next.js integration
 });
 
 // Export types for client-side usage

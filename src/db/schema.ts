@@ -1,6 +1,58 @@
 import { pgTable, uuid, text, timestamp, boolean, integer, jsonb, varchar, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
+// Better-auth expects these specific table names and structures
+// Users table - Better-auth expects "user" table name
+export const user = pgTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("emailVerified").notNull().default(false),
+  image: text("image"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+// Sessions table - Better-auth expects "session" table name
+export const session = pgTable("session", {
+  id: text("id").primaryKey(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  token: text("token").notNull().unique(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  ipAddress: text("ipAddress"),
+  userAgent: text("userAgent"),
+  userId: text("userId").notNull().references(() => user.id, { onDelete: "cascade" }),
+});
+
+// Accounts table - Better-auth expects "account" table name for social providers
+export const account = pgTable("account", {
+  id: text("id").primaryKey(),
+  accountId: text("accountId").notNull(),
+  providerId: text("providerId").notNull(),
+  userId: text("userId").notNull().references(() => user.id, { onDelete: "cascade" }),
+  accessToken: text("accessToken"),
+  refreshToken: text("refreshToken"),
+  idToken: text("idToken"),
+  accessTokenExpiresAt: timestamp("accessTokenExpiresAt"),
+  refreshTokenExpiresAt: timestamp("refreshTokenExpiresAt"),
+  scope: text("scope"),
+  password: text("password"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+// Verification table - Better-auth expects "verification" table name
+export const verification = pgTable("verification", {
+  id: text("id").primaryKey(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+// Our custom application tables
 // Users table - stores user information from Twitter OAuth
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -16,20 +68,6 @@ export const users = pgTable("users", {
 }, (table) => ({
   twitterIdIdx: index("users_twitter_id_idx").on(table.twitterId),
   usernameIdx: index("users_username_idx").on(table.username),
-}));
-
-// User sessions table - stores authentication sessions
-export const userSessions = pgTable("user_sessions", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-  sessionToken: text("session_token").notNull().unique(),
-  twitterAccessToken: text("twitter_access_token"),
-  twitterRefreshToken: text("twitter_refresh_token"),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => ({
-  sessionTokenIdx: index("user_sessions_session_token_idx").on(table.sessionToken),
-  userIdIdx: index("user_sessions_user_id_idx").on(table.userId),
 }));
 
 // Saved tweets table - stores user's saved/generated content
@@ -141,11 +179,20 @@ export const analytics = pgTable("analytics", {
 }));
 
 // Export types for TypeScript
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
+export type User = typeof user.$inferSelect;
+export type NewUser = typeof user.$inferInsert;
 
-export type UserSession = typeof userSessions.$inferSelect;
-export type NewUserSession = typeof userSessions.$inferInsert;
+export type Session = typeof session.$inferSelect;
+export type NewSession = typeof session.$inferInsert;
+
+export type Account = typeof account.$inferSelect;
+export type NewAccount = typeof account.$inferInsert;
+
+export type Verification = typeof verification.$inferSelect;
+export type NewVerification = typeof verification.$inferInsert;
+
+export type AppUser = typeof users.$inferSelect;
+export type NewAppUser = typeof users.$inferInsert;
 
 export type SavedTweet = typeof savedTweets.$inferSelect;
 export type NewSavedTweet = typeof savedTweets.$inferInsert;

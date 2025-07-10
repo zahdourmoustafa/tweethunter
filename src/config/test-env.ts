@@ -2,7 +2,11 @@
 
 /**
  * Simple test to validate environment configuration
+ * This runs server-side only, so we can safely use dotenv
  */
+
+import { config } from "dotenv";
+config(); // Load .env file for testing
 
 import { env, isDevelopment, isProduction } from "./env";
 

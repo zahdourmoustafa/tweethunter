@@ -11,9 +11,9 @@ const path = require('path');
 console.log('🔍 Validating environment configuration...\n');
 
 try {
-  // Try to run the TypeScript environment test
+  // Try to run the TypeScript environment test with proper env loading
   const result = execSync(
-    'npx tsx src/config/test-env.ts',
+    'npx tsx --env-file=.env src/config/test-env.ts',
     { 
       cwd: path.resolve(__dirname, '..'),
       encoding: 'utf8',

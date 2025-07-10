@@ -1,7 +1,3 @@
-// Load environment variables from .env file
-import { config } from "dotenv";
-config();
-
 // Simple validation function
 function validateEnv() {
   // Check if all required env vars exist

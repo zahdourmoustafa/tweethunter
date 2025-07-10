@@ -1,5 +1,8 @@
 #!/usr/bin/env tsx
 
+import { config } from "dotenv";
+config(); // Load .env file for server-side testing
+
 import { testConnection, healthCheck } from "../src/lib/db";
 
 console.log("🔍 Testing database connection...\n");

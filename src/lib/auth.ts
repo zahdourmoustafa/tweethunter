@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { env } from "@/config/env";
+import { serverEnv } from "@/config/env.server";
 import { db } from "@/lib/db";
 
 export const auth = betterAuth({
@@ -14,8 +14,8 @@ export const auth = betterAuth({
   
   socialProviders: {
     twitter: {
-      clientId: env.TWITTER_CLIENT_ID,
-      clientSecret: env.TWITTER_CLIENT_SECRET,
+      clientId: process.env.TWITTER_CLIENT_ID!,
+      clientSecret: serverEnv.TWITTER_CLIENT_SECRET,
     },
   },
   
@@ -25,7 +25,7 @@ export const auth = betterAuth({
   },
   
   advanced: {
-    useSecureCookies: env.NODE_ENV === "production",
+    useSecureCookies: serverEnv.NODE_ENV === "production",
     generateId: () => crypto.randomUUID(),
   },
 });

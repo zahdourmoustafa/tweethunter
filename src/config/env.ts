@@ -1,11 +1,18 @@
-// Simple validation function
-function validateEnv() {
-  // Check if all required env vars exist
+// Main environment configuration
+// This combines server and client env based on context
+
+import { isServer } from "@/lib/utils";
+
+// Server-side environment (only available on server)
+function validateServerEnv() {
+  if (!isServer()) {
+    // Return empty object for client-side, server env not needed
+    return {};
+  }
+
   const requiredVars = [
     'DATABASE_URL',
     'BETTER_AUTH_SECRET', 
-    'BETTER_AUTH_URL',
-    'TWITTER_CLIENT_ID',
     'TWITTER_CLIENT_SECRET',
     'OPENAI_API_KEY',
     'TWITTER_BEARER_TOKEN'
@@ -14,7 +21,7 @@ function validateEnv() {
   const missing = requiredVars.filter(key => !process.env[key]);
   
   if (missing.length > 0) {
-    throw new Error(`❌ Missing environment variables: ${missing.join(', ')}`);
+    throw new Error(`❌ Missing server environment variables: ${missing.join(', ')}`);
   }
 
   // Check BETTER_AUTH_SECRET length
@@ -25,17 +32,29 @@ function validateEnv() {
   return {
     DATABASE_URL: process.env.DATABASE_URL!,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
-    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL!,
-    TWITTER_CLIENT_ID: process.env.TWITTER_CLIENT_ID!,
     TWITTER_CLIENT_SECRET: process.env.TWITTER_CLIENT_SECRET!,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
     TWITTER_BEARER_TOKEN: process.env.TWITTER_BEARER_TOKEN!,
+  };
+}
+
+// Client-side environment (available on both server and client)
+function validateClientEnv() {
+  return {
+    BETTER_AUTH_URL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL || "http://localhost:3000",
+    TWITTER_CLIENT_ID: process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || process.env.TWITTER_CLIENT_ID || "",
     NODE_ENV: (process.env.NODE_ENV as "development" | "production" | "test") || "development",
   };
 }
 
-// Export validated environment variables
-export const env = validateEnv();
+// Export combined environment
+const serverEnv = validateServerEnv();
+const clientEnv = validateClientEnv();
+
+export const env = {
+  ...serverEnv,
+  ...clientEnv,
+};
 
 // Type-safe environment variables
 export type Env = typeof env;

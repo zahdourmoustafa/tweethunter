@@ -1,10 +1,10 @@
 "use client";
 
 import { createAuthClient } from "better-auth/react";
-import { env } from "@/config/env";
+import { clientEnv } from "@/config/env.client";
 
 export const authClient = createAuthClient({
-  baseURL: env.BETTER_AUTH_URL,
+  baseURL: clientEnv.BETTER_AUTH_URL,
   
   // Configure social providers
   socialProviders: {

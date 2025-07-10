@@ -16,12 +16,28 @@ export interface TweetMetrics {
   impression_count?: number
 }
 
+
+
 export interface Tweet {
   id: string
   text: string
   author: TwitterUser
   public_metrics: TweetMetrics
   created_at: string
+  // Thread/conversation context
+  conversation_id?: string
+  in_reply_to_user_id?: string
+  referenced_tweets?: Array<{
+    type: 'replied_to' | 'quoted' | 'retweeted'
+    id: string
+  }>
+  // Expanded thread context
+  thread_context?: {
+    is_thread: boolean
+    thread_position?: number
+    total_tweets?: number
+    thread_tweets?: Tweet[]
+  }
 }
 
 export interface TwitterApiSearchResponse {

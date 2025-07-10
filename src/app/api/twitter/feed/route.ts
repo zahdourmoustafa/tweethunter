@@ -51,9 +51,9 @@ export async function GET(request: NextRequest) {
     let tweets: Tweet[] = []
     let source = ''
 
-    // Fetch global tweets from twitterapi.io
-    console.log('🌐 Fetching global tweets from twitterapi.io...')
-    const response = await twitterApiService.getTrendingTweets(userTopics, 20)
+    // Fetch global tweets with thread context from twitterapi.io
+    console.log('🌐 Fetching global tweets with thread context from twitterapi.io...')
+    const response = await twitterApiService.searchTweetsWithThreads(userTopics, 20)
 
     if (response.status === 'error') {
       console.error('❌ Global TwitterAPI error:', response.msg)
@@ -68,6 +68,7 @@ export async function GET(request: NextRequest) {
     tweets = response.data || []
     source = 'global-fresh'
 
+    // Debug media information
     console.log(`✅ Successfully fetched ${tweets.length} tweets from ${source}`)
 
     // Update cache

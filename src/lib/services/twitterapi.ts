@@ -135,6 +135,9 @@ class TwitterApiService {
         query: `${query} -is:retweet lang:en min_faves:1000 min_retweets:200`,
         queryType: 'Top',
         maxResults: Math.min(maxResults, 100).toString(),
+        expansions: 'referenced_tweets.id,referenced_tweets.id.author_id,author_id',
+        'tweet.fields': 'conversation_id,in_reply_to_user_id,referenced_tweets,created_at,public_metrics',
+        'user.fields': 'name,username,profile_image_url,verified',
       })
 
       const endpoint = `/twitter/tweet/advanced_search?${searchParams}`
@@ -266,6 +269,7 @@ class TwitterApiService {
     
     // Handle different response formats
     let tweets = response.tweets || response.data || []
+    // Media lookup removed per user request
     
     if (!Array.isArray(tweets)) {
       console.log('❌ No tweets array found in response')
@@ -297,6 +301,8 @@ class TwitterApiService {
         })
       }
       
+      // Media processing removed per user request
+
       const finalTweet = {
         id: tweet.id || 'unknown',
         text: tweet.text || '',
@@ -313,6 +319,12 @@ class TwitterApiService {
           impression_count: impressionCount,
         },
         created_at: tweet.createdAt || tweet.created_at || new Date().toISOString(),
+        // Thread/conversation context
+        ...(tweet.conversation_id && { conversation_id: tweet.conversation_id }),
+        ...(tweet.in_reply_to_user_id && { in_reply_to_user_id: tweet.in_reply_to_user_id }),
+        ...(tweet.referenced_tweets && { 
+          referenced_tweets: tweet.referenced_tweets 
+        }),
       }
 
       return finalTweet
@@ -405,6 +417,9 @@ class TwitterApiService {
         query: `${query} -is:retweet lang:en min_faves:100 min_retweets:20`,
         queryType: 'Top',
         maxResults: maxResults.toString(),
+        expansions: 'referenced_tweets.id,referenced_tweets.id.author_id,author_id',
+        'tweet.fields': 'conversation_id,in_reply_to_user_id,referenced_tweets,created_at,public_metrics',
+        'user.fields': 'name,username,profile_image_url,verified',
       })
 
       const endpoint = `/twitter/tweet/advanced_search?${searchParams}`
@@ -466,6 +481,9 @@ class TwitterApiService {
         query: `"${cleanTopic}" -is:retweet lang:en min_faves:50 min_retweets:10`,
         queryType: 'Top',
         maxResults: maxResults.toString(),
+        expansions: 'referenced_tweets.id,referenced_tweets.id.author_id,author_id',
+        'tweet.fields': 'conversation_id,in_reply_to_user_id,referenced_tweets,created_at,public_metrics',
+        'user.fields': 'name,username,profile_image_url,verified',
       })
 
       const endpoint = `/twitter/tweet/advanced_search?${searchParams}`
@@ -511,6 +529,126 @@ class TwitterApiService {
       .sort((a, b) => (b.public_metrics.impression_count ?? 0) - (a.public_metrics.impression_count ?? 0))
       .slice(0, 5) // Max 5 from each individual topic
   }
+
+  // Fetch complete thread context for a tweet
+  async fetchThreadContext(conversationId: string): Promise<TwitterApiResponse<Tweet[]>> {
+    try {
+      console.log(`🧵 Fetching thread context for conversation: ${conversationId}`)
+      
+      const searchParams = new URLSearchParams({
+        query: `conversation_id:${conversationId}`,
+        queryType: 'Recent',
+        maxResults: '50',
+        expansions: 'referenced_tweets.id,referenced_tweets.id.author_id,author_id',
+        'tweet.fields': 'conversation_id,in_reply_to_user_id,referenced_tweets,created_at,public_metrics',
+        'user.fields': 'name,username,profile_image_url,verified',
+      })
+
+      const endpoint = `/twitter/tweet/advanced_search?${searchParams}`
+      const response = await this.makeRequest<any>(endpoint)
+
+      if (response.status === 'error') {
+        console.log(`❌ Failed to fetch thread context: ${response.msg}`)
+        return response as TwitterApiResponse<Tweet[]>
+      }
+
+      const threadTweets = this.transformTwitterApiResponse(response.data!)
+      
+      // Sort tweets chronologically to build proper thread order
+      const sortedThreadTweets = threadTweets
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+
+      console.log(`🧵 Found ${sortedThreadTweets.length} tweets in thread`)
+
+      return {
+        status: 'success',
+        msg: `Found ${sortedThreadTweets.length} tweets in thread`,
+        data: sortedThreadTweets,
+      }
+    } catch (error) {
+      console.error(`Thread fetch failed for conversation ${conversationId}:`, error)
+      return {
+        status: 'error',
+        msg: 'Failed to fetch thread context',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+  }
+
+  // Enhanced search that includes thread context for tweets
+  async searchTweetsWithThreads(
+    topics: string[], 
+    maxResults: number = 50
+  ): Promise<TwitterApiResponse<Tweet[]>> {
+    try {
+      // First get regular tweets
+      const tweetResults = await this.searchTweets(topics, maxResults)
+      
+      if (tweetResults.status === 'error' || !tweetResults.data) {
+        return tweetResults
+      }
+
+      const tweetsWithThreads: Tweet[] = []
+      
+      for (const tweet of tweetResults.data) {
+        // Check if tweet is part of a thread
+        if (tweet.conversation_id && (tweet.in_reply_to_user_id || tweet.referenced_tweets)) {
+          console.log(`🧵 Tweet ${tweet.id} is part of a thread, fetching context...`)
+          
+          // Fetch thread context
+          const threadResult = await this.fetchThreadContext(tweet.conversation_id)
+          
+          if (threadResult.status === 'success' && threadResult.data) {
+            // Add thread context to the tweet
+            const threadContext = {
+              is_thread: true,
+              thread_position: threadResult.data.findIndex(t => t.id === tweet.id) + 1,
+              total_tweets: threadResult.data.length,
+              thread_tweets: threadResult.data
+            }
+            
+            tweetsWithThreads.push({
+              ...tweet,
+              thread_context: threadContext
+            })
+          } else {
+            // If thread fetch fails, add tweet without thread context
+            tweetsWithThreads.push({
+              ...tweet,
+              thread_context: {
+                is_thread: false
+              }
+            })
+          }
+        } else {
+          // Regular single tweet
+          tweetsWithThreads.push({
+            ...tweet,
+            thread_context: {
+              is_thread: false
+            }
+          })
+        }
+      }
+
+      console.log(`🎯 Enhanced search complete: ${tweetsWithThreads.length} tweets (with thread context)`)
+
+      return {
+        status: 'success',
+        msg: `Found ${tweetsWithThreads.length} tweets with thread context`,
+        data: tweetsWithThreads,
+      }
+    } catch (error) {
+      console.error('Enhanced thread search failed:', error)
+      return {
+        status: 'error',
+        msg: 'Failed to search tweets with thread context',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+  }
+
+
 
   // Health check for the API
   async healthCheck(): Promise<boolean> {

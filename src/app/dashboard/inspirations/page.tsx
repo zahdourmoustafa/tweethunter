@@ -17,8 +17,14 @@ import {
   AlertTriangle,
   Globe,
   Wifi,
-  Eye
+  Eye,
+  Link2,
+  ArrowDown,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
+
+
 
 interface Tweet {
   id: string;
@@ -36,6 +42,20 @@ interface Tweet {
     impression_count: number;
   };
   created_at: string;
+  // Thread/conversation context
+  conversation_id?: string;
+  in_reply_to_user_id?: string;
+  referenced_tweets?: Array<{
+    type: 'replied_to' | 'quoted' | 'retweeted';
+    id: string;
+  }>;
+  // Expanded thread context
+  thread_context?: {
+    is_thread: boolean;
+    thread_position?: number;
+    total_tweets?: number;
+    thread_tweets?: Tweet[];
+  };
 }
 
 interface ApiResponse {
@@ -53,6 +73,7 @@ const InspirationsPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [warning, setWarning] = useState<string | null>(null)
   const [source, setSource] = useState<string>('')
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set())
 
   const fetchTweets = async (nocache = false) => {
     try {
@@ -106,6 +127,78 @@ const InspirationsPage = () => {
     if (count >= 1000) return `${(count / 1000).toFixed(1)}K`
     return count.toString()
   }
+
+  const toggleThread = (tweetId: string) => {
+    setExpandedThreads(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(tweetId)) {
+        newSet.delete(tweetId)
+      } else {
+        newSet.add(tweetId)
+      }
+      return newSet
+    })
+  }
+
+  const renderThreadTweet = (tweet: Tweet, isMain = false, threadPosition?: number) => (
+    <div key={tweet.id} className={`${isMain ? '' : 'border-l-2 border-blue-200 pl-4 ml-6 mt-3'}`}>
+      {!isMain && threadPosition && (
+        <div className="flex items-center gap-2 mb-2">
+          <ArrowDown className="h-3 w-3 text-blue-500" />
+          <span className="text-xs text-blue-600 font-medium">
+            Tweet {threadPosition}
+          </span>
+        </div>
+      )}
+      
+      <div className="flex items-start gap-3">
+        <Image
+          src={tweet.author.profile_image_url}
+          alt={tweet.author.name}
+          width={isMain ? 40 : 32}
+          height={isMain ? 40 : 32}
+          className={`${isMain ? 'w-10 h-10' : 'w-8 h-8'} rounded-full`}
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(tweet.author.name)}&background=random`;
+          }}
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className={`font-semibold text-gray-900 truncate ${isMain ? '' : 'text-sm'}`}>
+              {tweet.author.name}
+            </h3>
+            {tweet.author.verified && (
+              <div className={`${isMain ? 'w-4 h-4' : 'w-3 h-3'} bg-blue-500 rounded-full flex items-center justify-center`}>
+                <svg className={`${isMain ? 'w-3 h-3' : 'w-2 h-2'} text-white`} fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+            )}
+          </div>
+          <p className={`text-gray-500 ${isMain ? 'text-sm' : 'text-xs'}`}>@{tweet.author.username}</p>
+        </div>
+        {isMain && (
+          <a
+            href={`https://twitter.com/${tweet.author.username}/status/${tweet.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        )}
+      </div>
+      
+      <div className={`${isMain ? 'mt-3' : 'mt-2 ml-11'} space-y-3`}>
+        <p className={`text-gray-900 leading-relaxed whitespace-pre-wrap ${isMain ? '' : 'text-sm'}`}>
+          {tweet.text}
+        </p>
+        
+
+      </div>
+    </div>
+  )
 
   // Source info for display
   const sourceInfo = {
@@ -262,78 +355,97 @@ const InspirationsPage = () => {
 
         {tweets.length > 0 && (
           <div className="columns-1 md:columns-2 lg:columns-3 gap-3 space-y-3">
-            {tweets.map((tweet) => (
-              <Card key={tweet.id} className="overflow-hidden hover:shadow-md transition-shadow break-inside-avoid mb-3">
-                <CardHeader className="pb-2 pt-4 px-4">
-                  <div className="flex items-start gap-3">
-                    <Image
-                      src={tweet.author.profile_image_url}
-                      alt={tweet.author.name}
-                      width={40}
-                      height={40}
-                      className="w-10 h-10 rounded-full"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(tweet.author.name)}&background=random`;
-                      }}
-                    />
-                    <div className="flex-1 min-w-0">
+            {tweets.map((tweet) => {
+              const isThread = tweet.thread_context?.is_thread
+              const threadTweets = tweet.thread_context?.thread_tweets || []
+              const isExpanded = expandedThreads.has(tweet.id)
+              
+              return (
+                <Card key={tweet.id} className="overflow-hidden hover:shadow-md transition-shadow break-inside-avoid mb-3">
+                  {/* Thread Header */}
+                  {isThread && (
+                    <div className="bg-blue-50 border-b border-blue-100 px-4 py-2">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-gray-900 truncate">
-                          {tweet.author.name}
-                        </h3>
-                          {tweet.author.verified && (
-                          <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          </div>
+                          <Link2 className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-800">
+                            Thread ({tweet.thread_context?.total_tweets || 1} tweets)
+                          </span>
+                          {tweet.thread_context?.thread_position && (
+                            <Badge variant="secondary" className="text-xs">
+                              #{tweet.thread_context.thread_position}
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        {threadTweets.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleThread(tweet.id)}
+                            className="h-6 px-2 text-blue-600 hover:text-blue-800"
+                          >
+                            {isExpanded ? (
+                              <>
+                                <ChevronUp className="h-3 w-3 mr-1" />
+                                Hide
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-3 w-3 mr-1" />
+                                Show All
+                              </>
+                            )}
+                          </Button>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500">@{tweet.author.username}</p>
                     </div>
-                    <a
-                      href={`https://twitter.com/${tweet.author.username}/status/${tweet.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </div>
-                </CardHeader>
-                <CardContent className="px-4 pb-4 space-y-3">
-                  <p className="text-gray-900 leading-relaxed whitespace-pre-wrap">
-                    {tweet.text}
-                  </p>
+                  )}
+
+                  <CardHeader className="pb-2 pt-4 px-4">
+                    {renderThreadTweet(tweet, true)}
+                  </CardHeader>
                   
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                    <div className="flex items-center gap-6 text-sm text-gray-500">
-                      <div className="flex items-center gap-1">
-                        <Heart className="h-4 w-4" />
-                        <span>{formatCount(tweet.public_metrics.like_count)}</span>
+                  <CardContent className="px-4 pb-4 space-y-3">
+
+
+                    {/* Expanded Thread */}
+                    {isThread && isExpanded && threadTweets.length > 1 && (
+                      <div className="border-t border-gray-100 pt-3">
+                        {threadTweets.slice(1).map((threadTweet, index) => 
+                          renderThreadTweet(threadTweet, false, index + 2)
+                        )}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Repeat2 className="h-4 w-4" />
-                        <span>{formatCount(tweet.public_metrics.retweet_count)}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <MessageCircle className="h-4 w-4" />
-                        <span>{formatCount(tweet.public_metrics.reply_count)}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Eye className="h-4 w-4" />
-                        <span>{formatCount(tweet.public_metrics.impression_count)}</span>
-                      </div>
-                    </div>
+                    )}
                     
-                    <div className="text-xs text-gray-400">
-                      {new Date(tweet.created_at).toLocaleDateString()}
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                      <div className="flex items-center gap-6 text-sm text-gray-500">
+                        <div className="flex items-center gap-1">
+                          <Heart className="h-4 w-4" />
+                          <span>{formatCount(tweet.public_metrics.like_count)}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Repeat2 className="h-4 w-4" />
+                          <span>{formatCount(tweet.public_metrics.retweet_count)}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <MessageCircle className="h-4 w-4" />
+                          <span>{formatCount(tweet.public_metrics.reply_count)}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Eye className="h-4 w-4" />
+                          <span>{formatCount(tweet.public_metrics.impression_count)}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="text-xs text-gray-400">
+                        {new Date(tweet.created_at).toLocaleDateString()}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         )}
       </div>

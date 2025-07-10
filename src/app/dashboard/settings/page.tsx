@@ -96,7 +96,12 @@ export default function SettingsPage() {
   };
 
   const handleRemoveTopic = (topic: string) => {
-    setSelectedTopics(prev => prev.filter(t => t !== topic));
+    console.log('Removing topic:', topic);
+    setSelectedTopics(prev => {
+      const newTopics = prev.filter(t => t !== topic);
+      console.log('New topics after removal:', newTopics);
+      return newTopics;
+    });
     setError("");
   };
 
@@ -178,12 +183,24 @@ export default function SettingsPage() {
               <h4 className="font-medium mb-3">Selected Topics ({selectedTopics.length}/5)</h4>
               <div className="flex flex-wrap gap-2">
                 {selectedTopics.map((topic) => (
-                  <Badge key={topic} variant="default" className="gap-1">
-                    {topic}
-                    <X 
-                      className="h-3 w-3 cursor-pointer hover:text-destructive" 
-                      onClick={() => handleRemoveTopic(topic)}
-                    />
+                  <Badge 
+                    key={topic} 
+                    variant="default" 
+                    className="gap-1 pr-1"
+                  >
+                    <span>{topic}</span>
+                    <button
+                      type="button"
+                      className="ml-1 rounded-full p-0.5 hover:bg-destructive/20 transition-colors"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Remove button clicked for topic:', topic);
+                        handleRemoveTopic(topic);
+                      }}
+                    >
+                      <X className="h-3 w-3 text-current hover:text-destructive" />
+                    </button>
                   </Badge>
                 ))}
               </div>
@@ -210,7 +227,13 @@ export default function SettingsPage() {
                     >
                       {topic}
                       {selectedTopics.includes(topic) && (
-                        <X className="ml-1 h-3 w-3" />
+                        <X 
+                          className="ml-1 h-3 w-3 cursor-pointer hover:text-destructive" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveTopic(topic);
+                          }}
+                        />
                       )}
                     </Badge>
                   ))}

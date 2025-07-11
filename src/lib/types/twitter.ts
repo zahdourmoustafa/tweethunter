@@ -38,6 +38,10 @@ export interface Tweet {
     total_tweets?: number
     thread_tweets?: Tweet[]
   }
+  // Enhanced source information for inspiration accounts
+  source?: 'inspiration_account' | 'trending' | 'similar_account'
+  source_account?: string
+  sourceLabel?: string
 }
 
 export interface TwitterApiSearchResponse {

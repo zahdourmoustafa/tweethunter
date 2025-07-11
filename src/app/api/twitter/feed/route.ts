@@ -6,10 +6,6 @@ import { eq } from 'drizzle-orm'
 import { twitterApiService } from '@/lib/services/twitterapi'
 import type { Tweet } from '@/lib/types/twitter'
 
-// Cache for reducing API calls
-const CACHE_DURATION = 15 * 60 * 1000 // 15 minutes
-const cache = new Map<string, { data: Tweet[]; timestamp: number }>()
-
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
@@ -21,42 +17,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    console.log('📥 Fetching inspirations for user:', session.user.email)
-
-    // Get query parameters
-    const url = new URL(request.url)
-    const bypassCache = url.searchParams.get('nocache') === 'true'
-
-    console.log('🔍 API CALL DEBUG:')
-    console.log('   🚫 Cache bypass:', bypassCache)
-    console.log('   🌐 Full URL:', request.url)
+    console.log('📥 Fetching fresh inspirations for user:', session.user.email)
 
     // Get user's interests/topics from database
     const userTopics = await getUserTopics(session.user.email)
     console.log('🎯 User topics:', userTopics)
 
-    // Check cache first
-    const cacheKey = `tweets_global_${userTopics.join('_')}`
-    const cached = cache.get(cacheKey)
-    
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION && !bypassCache) {
-      console.log('📦 Returning cached tweets')
-      return NextResponse.json({
-        tweets: cached.data,
-        source: 'global-cached',
-        count: cached.data.length,
-      })
-    }
-
-    let tweets: Tweet[] = []
-    let source = ''
-
-    // Fetch global tweets with thread context from twitterapi.io
-    console.log('🌐 Fetching global tweets with thread context from twitterapi.io...')
+    // Always fetch fresh tweets - no caching for real-time content discovery
+    console.log('🔥 Fetching FRESH tweets with thread context from twitterapi.io...')
     const response = await twitterApiService.searchTweetsWithThreads(userTopics, 50)
 
     if (response.status === 'error') {
-      console.error('❌ Global TwitterAPI error:', response.msg)
+      console.error('❌ TwitterAPI error:', response.msg)
       return NextResponse.json({ 
         tweets: [],
         source: 'error',
@@ -65,23 +37,15 @@ export async function GET(request: NextRequest) {
       }, { status: 500 })
     }
 
-    tweets = response.data || []
-    source = 'global-fresh'
-
-    // Debug media information
-    console.log(`✅ Successfully fetched ${tweets.length} tweets from ${source}`)
-
-    // Update cache
-    cache.set(cacheKey, {
-      data: tweets,
-      timestamp: Date.now(),
-    })
+    const tweets = response.data || []
+    console.log(`✅ Successfully fetched ${tweets.length} FRESH tweets for real-time discovery`)
 
     return NextResponse.json({
       tweets,
-      source,
+      source: 'fresh',
       count: tweets.length,
-      message: `Found ${tweets.length} high-engagement tweets for your interests`,
+      message: `Found ${tweets.length} fresh high-engagement tweets for your interests`,
+      timestamp: new Date().toISOString(),
     })
 
   } catch (error) {

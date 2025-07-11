@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Settings, Plus, X, Save, Loader2 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Settings, Plus, X, Save, Loader2, Users, Twitter, Trash2, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // Same predefined topics as onboarding
@@ -37,32 +38,60 @@ const PREDEFINED_TOPICS = [
   }
 ];
 
+interface InspirationAccount {
+  id: string;
+  twitterUsername: string;
+  displayName: string;
+  avatarUrl?: string;
+  verified: boolean;
+  followerCount: string;
+  bio?: string;
+  createdAt: string;
+}
+
 export default function SettingsPage() {
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
   const [customTopic, setCustomTopic] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+  
+  // Inspiration accounts state
+  const [inspirationAccounts, setInspirationAccounts] = useState<InspirationAccount[]>([]);
+  const [newAccountUsername, setNewAccountUsername] = useState("");
+  const [isAddingAccount, setIsAddingAccount] = useState(false);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
+  const [accountError, setAccountError] = useState("");
+  
   const { toast } = useToast();
 
-  // Load current topics
+  // Load current topics and inspiration accounts
   useEffect(() => {
-    async function loadTopics() {
+    async function loadData() {
       try {
-        const response = await fetch("/api/user/topics");
-        if (response.ok) {
-          const data = await response.json();
-          setSelectedTopics(data.topics || []);
+        // Load topics
+        const topicsResponse = await fetch("/api/user/topics");
+        if (topicsResponse.ok) {
+          const topicsData = await topicsResponse.json();
+          setSelectedTopics(topicsData.topics || []);
+        }
+
+        // Load inspiration accounts
+        const accountsResponse = await fetch("/api/inspiration/accounts");
+        if (accountsResponse.ok) {
+          const accountsData = await accountsResponse.json();
+          setInspirationAccounts(accountsData.data || []);
         }
       } catch (error) {
-        console.error("Error loading topics:", error);
-        setError("Failed to load topics");
+        console.error("Error loading data:", error);
+        setError("Failed to load settings");
       } finally {
         setIsLoading(false);
+        setIsLoadingAccounts(false);
       }
     }
 
-    loadTopics();
+    loadData();
   }, []);
 
   const handleTopicToggle = (topic: string) => {
@@ -103,6 +132,93 @@ export default function SettingsPage() {
       return newTopics;
     });
     setError("");
+  };
+
+  // Inspiration accounts functions
+  const handleAddAccount = async () => {
+    if (!newAccountUsername.trim()) {
+      setAccountError("Please enter a Twitter username");
+      return;
+    }
+
+    if (inspirationAccounts.length >= 10) {
+      setAccountError("Maximum 10 inspiration accounts allowed");
+      return;
+    }
+
+    setIsAddingAccount(true);
+    setAccountError("");
+
+    try {
+      const response = await fetch("/api/inspiration/accounts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username: newAccountUsername.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to add account");
+      }
+
+      setInspirationAccounts(prev => [...prev, data.data]);
+      setNewAccountUsername("");
+      
+      toast({
+        title: "Account added",
+        description: `@${data.data.twitterUsername} has been added to your inspiration accounts.`,
+      });
+    } catch (error: any) {
+      console.error("Error adding inspiration account:", error);
+      setAccountError(error.message || "Failed to add account. Please try again.");
+    } finally {
+      setIsAddingAccount(false);
+    }
+  };
+
+  const handleRemoveAccount = async (accountId: string, username: string) => {
+    try {
+      const response = await fetch(`/api/inspiration/accounts?id=${accountId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to remove account");
+      }
+
+      setInspirationAccounts(prev => prev.filter(acc => acc.id !== accountId));
+      
+      toast({
+        title: "Account removed",
+        description: `@${username} has been removed from your inspiration accounts.`,
+      });
+    } catch (error) {
+      console.error("Error removing inspiration account:", error);
+      setAccountError("Failed to remove account. Please try again.");
+    }
+  };
+
+  const handleResetSeenTweets = async () => {
+    try {
+      const response = await fetch("/api/inspiration/feed", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to reset seen tweets");
+      }
+
+      toast({
+        title: "Content refreshed",
+        description: "Your seen tweets history has been cleared. You'll now see fresh content!",
+      });
+    } catch (error) {
+      console.error("Error resetting seen tweets:", error);
+      setAccountError("Failed to reset content. Please try again.");
+    }
   };
 
   const handleSave = async () => {
@@ -291,6 +407,164 @@ export default function SettingsPage() {
               )}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Inspiration Accounts */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Inspiration Accounts
+            <Badge variant="secondary" className="ml-auto">
+              Optional
+            </Badge>
+          </CardTitle>
+          <CardDescription>
+            Add Twitter accounts you want to follow for inspiration. We'll include their best content in your feed for more variety and fresh perspectives.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Current Accounts */}
+          {inspirationAccounts.length > 0 && (
+            <div>
+              <h4 className="font-medium mb-3">
+                Your Inspiration Accounts ({inspirationAccounts.length}/10)
+              </h4>
+              <div className="space-y-3">
+                {inspirationAccounts.map((account) => (
+                  <div 
+                    key={account.id} 
+                    className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg"
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={account.avatarUrl} />
+                      <AvatarFallback>
+                        {account.displayName.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium truncate">
+                          {account.displayName}
+                        </p>
+                        {account.verified && (
+                          <Twitter className="h-4 w-4 text-blue-500" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>@{account.twitterUsername}</span>
+                        <span>•</span>
+                        <span>{account.followerCount} followers</span>
+                      </div>
+                      {account.bio && (
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                          {account.bio}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveAccount(account.id, account.twitterUsername)}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {inspirationAccounts.length === 0 && !isLoadingAccounts && (
+            <div className="text-center py-8 text-muted-foreground">
+              <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <h4 className="font-medium mb-2">No inspiration accounts added yet</h4>
+              <p className="text-sm">
+                Add Twitter accounts to get personalized content recommendations and avoid repetitive tweets.
+              </p>
+            </div>
+          )}
+
+          {inspirationAccounts.length > 0 && (
+            <Separator />
+          )}
+
+          {/* Add New Account */}
+          <div>
+            <h4 className="font-medium mb-3">Add Inspiration Account</h4>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <div className="relative">
+                  <Twitter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Enter Twitter username (e.g., naval, levelsio)"
+                    value={newAccountUsername}
+                    onChange={(e) => {
+                      setNewAccountUsername(e.target.value);
+                      setAccountError("");
+                    }}
+                    onKeyPress={(e) => e.key === "Enter" && handleAddAccount()}
+                    disabled={inspirationAccounts.length >= 10 || isAddingAccount}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <Button 
+                onClick={handleAddAccount}
+                disabled={!newAccountUsername.trim() || inspirationAccounts.length >= 10 || isAddingAccount}
+                variant="outline"
+              >
+                {isAddingAccount ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            
+            {inspirationAccounts.length >= 10 && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Maximum 10 inspiration accounts reached. Remove one to add another.
+              </p>
+            )}
+          </div>
+
+          {/* Content Refresh */}
+          {inspirationAccounts.length > 0 && (
+            <>
+              <Separator />
+              <div>
+                <h4 className="font-medium mb-3">Content Variety</h4>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Seeing the same tweets repeatedly? Reset your history to get fresh content.
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleResetSeenTweets}
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Refresh Content
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Account Error Message */}
+          {accountError && (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <p className="text-destructive text-sm">{accountError}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -21,7 +21,10 @@ import {
   Link2,
   ArrowDown,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Zap,
+  Users,
+  RotateCcw
 } from "lucide-react";
 
 
@@ -56,52 +59,51 @@ interface Tweet {
     total_tweets?: number;
     thread_tweets?: Tweet[];
   };
+  // Enhanced source information
+  source?: 'inspiration_account' | 'trending' | 'similar_account';
+  source_account?: string;
+  sourceLabel?: string;
 }
 
 interface ApiResponse {
-  tweets: Tweet[];
-  source: string;
-  count: number;
-  message?: string;
+  status: string;
+  data: {
+    tweets: Tweet[];
+    stats: {
+      total: number;
+      inspirationAccounts: number;
+      unseenCount: number;
+      hasInspirationAccounts: boolean;
+    };
+  };
   error?: string;
-  warning?: string;
 }
 
 const InspirationsPage = () => {
   const [tweets, setTweets] = useState<Tweet[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [warning, setWarning] = useState<string | null>(null)
-  const [source, setSource] = useState<string>('')
+  const [stats, setStats] = useState<any>(null)
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set())
 
-  const fetchTweets = async (nocache = false) => {
+  const fetchTweets = async () => {
     try {
       setLoading(true)
       setError(null)
-      setWarning(null)
       
-      const params = new URLSearchParams({
-        ...(nocache && { nocache: 'true' })
-      })
+      console.log('🔥 Fetching enhanced inspiration feed...')
       
-      console.log('🔍 Fetching global tweets...')
-      
-      const response = await fetch(`/api/twitter/feed?${params}`)
+      const response = await fetch('/api/inspiration/feed?limit=50')
       const data: ApiResponse = await response.json()
       
-      if (!response.ok) {
+      if (!response.ok || data.status === 'error') {
         throw new Error(data.error || 'Failed to fetch tweets')
       }
       
-      setTweets(data.tweets || [])
-      setSource(data.source || '')
+      setTweets(data.data.tweets || [])
+      setStats(data.data.stats || {})
       
-      if (data.warning) {
-        setWarning(data.warning)
-      }
-      
-      console.log(`✅ Loaded ${data.count} tweets from ${data.source}`)
+      console.log(`✅ Loaded ${data.data.tweets.length} tweets with ${data.data.stats.inspirationAccounts} inspiration accounts`)
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load tweets'
@@ -117,10 +119,6 @@ const InspirationsPage = () => {
   useEffect(() => {
     fetchTweets()
   }, [])
-
-  const handleRetry = async () => {
-    await fetchTweets(true) // Force fresh fetch
-  }
 
   const formatCount = (count: number): string => {
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`
@@ -200,73 +198,72 @@ const InspirationsPage = () => {
     </div>
   )
 
-  // Source info for display
-  const sourceInfo = {
-    'global-fresh': { label: 'Global • Fresh', color: 'bg-green-600', icon: Globe },
-    'global-cached': { label: 'Global • Cached', color: 'bg-blue-600', icon: Globe },
-    'error': { label: 'Error', color: 'bg-red-600', icon: AlertTriangle },
-  }
-
-  const currentSourceInfo = sourceInfo[source as keyof typeof sourceInfo] || { 
-    label: 'Unknown', 
-    color: 'bg-gray-600',
-    icon: Wifi
-  }
-  const SourceIcon = currentSourceInfo.icon
-
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto p-4 space-y-4">
-        
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="space-y-4">
+        <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Tweet Inspirations</h1>
-              <p className="text-muted-foreground mt-1">
-                Discover viral content from across Twitter
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Content Inspiration
+              </h1>
+              <p className="text-gray-600">
+                Discover high-quality content from trending topics and inspiration accounts
               </p>
+            </div>
+            <div>
+              <Button
+                onClick={fetchTweets}
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                {loading ? 'Loading...' : 'Get Fresh Content'}
+              </Button>
             </div>
           </div>
 
-          {/* Source Info */}
-          {source && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-white text-sm ${currentSourceInfo.color}`}>
-                  <SourceIcon className="h-4 w-4" />
-                  <span>{currentSourceInfo.label}</span>
-                </div>
-                {tweets.length > 0 && (
-                  <Badge variant="secondary">{tweets.length} tweets</Badge>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRetry}
-                  disabled={loading}
-                  className="flex items-center gap-2"
-                >
-                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
+          {/* Stats Banner */}
+          {stats && !loading && (
+            <div className="mt-4">
+              <div className="bg-white rounded-lg p-4 border inline-block">
+                <div className="text-2xl font-semibold text-gray-900">{stats.total}</div>
+                <div className="text-sm text-gray-500">Total Tweets</div>
               </div>
             </div>
           )}
-        </div>
 
-        {/* Warning Message */}
-        {warning && (
-          <Alert className="border-yellow-200 bg-yellow-50">
-            <AlertTriangle className="h-4 w-4 text-yellow-600" />
-            <AlertDescription className="text-yellow-800">
-              {warning}
-            </AlertDescription>
-          </Alert>
-        )}
+          {/* No Inspiration Accounts CTA */}
+          {stats && !stats.hasInspirationAccounts && !loading && (
+            <Alert className="mt-4 border-blue-200 bg-blue-50">
+              <Users className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800">
+                <strong>Get more variety!</strong> Add inspiration accounts in{' '}
+                <a href="/dashboard/settings" className="underline hover:no-underline">
+                  Settings
+                </a>{' '}
+                to see content from your favorite creators and avoid repetitive tweets.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Too Much Previously Seen Content Warning */}
+          {stats && stats.total > 0 && !loading && (
+            ((stats.total - stats.unseenCount) / stats.total) > 0.6 && (
+              <Alert className="mt-4 border-orange-200 bg-orange-50">
+                <RotateCcw className="h-4 w-4 text-orange-600" />
+                <AlertDescription className="text-orange-800">
+                  <strong>Lots of repeat content!</strong> You've seen {stats.total - stats.unseenCount} out of {stats.total} tweets. 
+                  Refresh the page to get fresh content.
+                </AlertDescription>
+              </Alert>
+            )
+          )}
+
+          {/* Debug Panel */}
+          {/* Debug functionality removed for cleaner UI */}
+        </div>
 
         {/* Error State */}
         {error && (
@@ -283,12 +280,12 @@ const InspirationsPage = () => {
                   {error}
                 </p>
               <Button
-                onClick={handleRetry}
+                onClick={fetchTweets}
                 disabled={loading}
                   className="flex items-center gap-2"
               >
                   <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Try Again
+                Get Fresh Content
               </Button>
               </div>
             </div>
@@ -334,20 +331,31 @@ const InspirationsPage = () => {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  No Inspirations Found
+                  No Content Found
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  We couldn&apos;t find any trending tweets for your interests right now. 
-                  Try refreshing or updating your topics in settings.
+                  We couldn&apos;t find any content for your interests right now. 
+                  Try adding inspiration accounts in Settings or refresh to get new trending content.
                 </p>
-                <Button 
-                  onClick={handleRetry}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Refresh
-                </Button>
+                <div className="flex gap-2 justify-center">
+                  <Button 
+                    onClick={fetchTweets}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Refresh Content
+                  </Button>
+                  <Button 
+                    asChild
+                    className="flex items-center gap-2"
+                  >
+                    <a href="/dashboard/settings">
+                      <Users className="h-4 w-4" />
+                      Add Inspiration Accounts
+                    </a>
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -407,8 +415,6 @@ const InspirationsPage = () => {
                   </CardHeader>
                   
                   <CardContent className="px-4 pb-4 space-y-3">
-
-
                     {/* Expanded Thread */}
                     {isThread && isExpanded && threadTweets.length > 1 && (
                       <div className="border-t border-gray-100 pt-3">

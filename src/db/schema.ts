@@ -118,6 +118,8 @@ export const tweetCache = pgTable("tweet_cache", {
   }>().notNull(),
   topics: jsonb("topics").$type<string[]>().default([]),
   language: varchar("language", { length: 10 }).default("en"),
+  source: varchar("source", { length: 50 }).default("trending"), // trending, inspiration_account, similar_account
+  sourceAccountId: text("source_account_id"), // References inspiration account if applicable
   createdAt: timestamp("created_at").notNull(), // Original tweet creation time
   cachedAt: timestamp("cached_at").defaultNow().notNull(), // When we cached it
   expiresAt: timestamp("expires_at").notNull(), // Cache expiration
@@ -127,6 +129,68 @@ export const tweetCache = pgTable("tweet_cache", {
   topicsIdx: index("tweet_cache_topics_idx").on(table.topics),
   expiresAtIdx: index("tweet_cache_expires_at_idx").on(table.expiresAt),
   metricsIdx: index("tweet_cache_metrics_idx").on(table.metrics),
+  sourceIdx: index("tweet_cache_source_idx").on(table.source),
+  sourceAccountIdx: index("tweet_cache_source_account_idx").on(table.sourceAccountId),
+}));
+
+// Inspiration accounts - stores accounts users want to follow for inspiration
+export const inspirationAccounts = pgTable("inspiration_accounts", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  twitterUsername: text("twitter_username").notNull(),
+  twitterUserId: text("twitter_user_id").notNull(),
+  displayName: text("display_name").notNull(),
+  avatarUrl: text("avatar_url"),
+  verified: boolean("verified").default(false),
+  followerCount: text("follower_count"),
+  bio: text("bio"),
+  isActive: boolean("is_active").default(true),
+  lastFetchedAt: timestamp("last_fetched_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("inspiration_accounts_user_id_idx").on(table.userId),
+  twitterUsernameIdx: index("inspiration_accounts_twitter_username_idx").on(table.twitterUsername),
+  twitterUserIdIdx: index("inspiration_accounts_twitter_user_id_idx").on(table.twitterUserId),
+  userAccountIdx: index("inspiration_accounts_user_account_idx").on(table.userId, table.twitterUsername),
+}));
+
+// User seen tweets - tracks which tweets a user has seen to prevent repetition
+export const userSeenTweets = pgTable("user_seen_tweets", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  tweetId: text("tweet_id").notNull(),
+  seenAt: timestamp("seen_at").defaultNow().notNull(),
+  source: varchar("source", { length: 50 }).notNull(), // trending, inspiration_account, similar_account
+}, (table) => ({
+  userIdIdx: index("user_seen_tweets_user_id_idx").on(table.userId),
+  tweetIdIdx: index("user_seen_tweets_tweet_id_idx").on(table.tweetId),
+  userTweetIdx: index("user_seen_tweets_user_tweet_idx").on(table.userId, table.tweetId),
+  seenAtIdx: index("user_seen_tweets_seen_at_idx").on(table.seenAt),
+}));
+
+// Similar accounts discovery - stores algorithmically discovered similar accounts
+export const similarAccounts = pgTable("similar_accounts", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  baseAccountId: uuid("base_account_id").references(() => inspirationAccounts.id, { onDelete: "cascade" }).notNull(),
+  twitterUsername: text("twitter_username").notNull(),
+  twitterUserId: text("twitter_user_id").notNull(),
+  displayName: text("display_name").notNull(),
+  avatarUrl: text("avatar_url"),
+  verified: boolean("verified").default(false),
+  followerCount: text("follower_count"),
+  bio: text("bio"),
+  similarityScore: text("similarity_score").default("0"), // 0-100 score
+  similarityReasons: jsonb("similarity_reasons").$type<string[]>().default([]), // bio_keywords, hashtags, followers
+  isActive: boolean("is_active").default(true),
+  lastFetchedAt: timestamp("last_fetched_at"),
+  discoveredAt: timestamp("discovered_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  baseAccountIdx: index("similar_accounts_base_account_idx").on(table.baseAccountId),
+  twitterUsernameIdx: index("similar_accounts_twitter_username_idx").on(table.twitterUsername),
+  twitterUserIdIdx: index("similar_accounts_twitter_user_id_idx").on(table.twitterUserId),
+  similarityScoreIdx: index("similar_accounts_similarity_score_idx").on(table.similarityScore),
 }));
 
 // User preferences table - stores user settings and preferences
@@ -205,3 +269,12 @@ export type NewUserPreferences = typeof userPreferences.$inferInsert;
 
 export type Analytics = typeof analytics.$inferSelect;
 export type NewAnalytics = typeof analytics.$inferInsert;
+
+export type InspirationAccount = typeof inspirationAccounts.$inferSelect;
+export type NewInspirationAccount = typeof inspirationAccounts.$inferInsert;
+
+export type UserSeenTweet = typeof userSeenTweets.$inferSelect;
+export type NewUserSeenTweet = typeof userSeenTweets.$inferInsert;
+
+export type SimilarAccount = typeof similarAccounts.$inferSelect;
+export type NewSimilarAccount = typeof similarAccounts.$inferInsert;

@@ -130,11 +130,11 @@ class TwitterApiService {
 
       console.log('🔍 High-engagement search query:', query)
 
-      // Very strict parameters for viral content only
+      // Reduced parameters for broader viral content
       const searchParams = new URLSearchParams({
-        query: `${query} -is:retweet lang:en min_faves:1000 min_retweets:200`,
+        query: `${query} -is:retweet lang:en min_faves:50 min_retweets:10`,
         queryType: 'Top',
-        maxResults: Math.min(maxResults, 100).toString(),
+        maxResults: '100',
         expansions: 'referenced_tweets.id,referenced_tweets.id.author_id,author_id',
         'tweet.fields': 'conversation_id,in_reply_to_user_id,referenced_tweets,created_at,public_metrics',
         'user.fields': 'name,username,profile_image_url,verified',
@@ -184,58 +184,80 @@ class TwitterApiService {
         console.log(`✅ Added ${trendsResult.data.length} tweets from trends API`)
       }
 
-      // Step 2: Search user topics with very high engagement (10k+ impressions)
-      if (allTweets.length < 20) {
-        console.log('🔄 Step 2: Searching YOUR topics with high engagement (10k+ impressions)')
-        const highEngagementResult = await this.searchHighEngagementTweets(topics, 100)
+      // Step 2: Search user topics with high engagement (1k+ impressions) - ALWAYS run
+      console.log('🔄 Step 2: Searching YOUR topics with high engagement (1k+ impressions)')
+      const highEngagementResult = await this.searchHighEngagementTweets(topics, 100)
+      
+      if (highEngagementResult.status === 'success' && highEngagementResult.data) {
+        const newTweets = highEngagementResult.data.filter(tweet => 
+          !allTweets.some(existing => existing.id === tweet.id)
+        )
+        allTweets.push(...newTweets)
+        console.log(`✅ Added ${newTweets.length} new tweets from YOUR topics (high engagement)`)
+      }
+
+      // Step 3: Search user topics with medium engagement (500+ impressions) - ALWAYS run
+      console.log('🔄 Step 3: Searching YOUR topics with medium engagement (500+ impressions)')
+      const mediumEngagementResult = await this.searchBroaderEngagement(topics, 100)
+      
+      if (mediumEngagementResult.status === 'success' && mediumEngagementResult.data) {
+        const newTweets = mediumEngagementResult.data.filter(tweet => 
+          !allTweets.some(existing => existing.id === tweet.id)
+        )
+        allTweets.push(...newTweets)
+        console.log(`✅ Added ${newTweets.length} new tweets from YOUR topics (medium engagement)`)
+      }
+
+      // Step 4: Search individual user topics separately (lower threshold: 200+ impressions) - ALWAYS run
+      console.log('🔄 Step 4: Searching YOUR topics individually with lower thresholds')
         
-        if (highEngagementResult.status === 'success' && highEngagementResult.data) {
-          const newTweets = highEngagementResult.data.filter(tweet => 
+      for (const topic of topics.slice(0, 5)) { // Try first 5 topics individually (increased from 3)
+        if (allTweets.length >= 50) break // Stop if we have more than enough
+        
+        console.log(`   🔍 Searching individual topic: "${topic}"`)
+        const individualResult = await this.searchIndividualTopic(topic, 30)
+        
+        if (individualResult.status === 'success' && individualResult.data) {
+          const newTweets = individualResult.data.filter(tweet => 
             !allTweets.some(existing => existing.id === tweet.id)
           )
           allTweets.push(...newTweets)
-          console.log(`✅ Added ${newTweets.length} new tweets from YOUR topics (high engagement)`)
+          console.log(`   ✅ Added ${newTweets.length} tweets from "${topic}"`)
         }
       }
 
-      // Step 3: Search user topics with medium engagement (5k+ impressions)
-      if (allTweets.length < 15) {
-        console.log('🔄 Step 3: Searching YOUR topics with medium engagement (5k+ impressions)')
-        const mediumEngagementResult = await this.searchBroaderEngagement(topics, 100)
+      // Step 5: If still not enough, do a very broad search with minimal requirements
+      if (allTweets.length < 30) {
+        console.log('🔄 Step 5: Very broad search with minimal requirements')
         
-        if (mediumEngagementResult.status === 'success' && mediumEngagementResult.data) {
-          const newTweets = mediumEngagementResult.data.filter(tweet => 
-            !allTweets.some(existing => existing.id === tweet.id)
-          )
-          allTweets.push(...newTweets)
-          console.log(`✅ Added ${newTweets.length} new tweets from YOUR topics (medium engagement)`)
-        }
-      }
-
-      // Step 4: Search individual user topics separately (lower threshold: 2k+ impressions)
-      if (allTweets.length < 10) {
-        console.log('🔄 Step 4: Searching YOUR topics individually with lower thresholds')
-        
-        for (const topic of topics.slice(0, 3)) { // Try first 3 topics individually
-          if (allTweets.length >= 20) break // Stop if we have enough
+        for (const topic of topics.slice(0, 3)) {
+          if (allTweets.length >= 40) break
           
-          console.log(`   🔍 Searching individual topic: "${topic}"`)
-          const individualResult = await this.searchIndividualTopic(topic, 30)
+          console.log(`   🔍 Broad search for: "${topic}"`)
+          const broadResult = await this.searchVeryBroadTopic(topic, 50)
           
-          if (individualResult.status === 'success' && individualResult.data) {
-            const newTweets = individualResult.data.filter(tweet => 
+          if (broadResult.status === 'success' && broadResult.data) {
+            const newTweets = broadResult.data.filter(tweet => 
               !allTweets.some(existing => existing.id === tweet.id)
             )
             allTweets.push(...newTweets)
-            console.log(`   ✅ Added ${newTweets.length} tweets from "${topic}"`)
+            console.log(`   ✅ Added ${newTweets.length} tweets from broad search: "${topic}"`)
           }
         }
       }
 
-      // Remove duplicates and sort by impression count
+      // Remove duplicates and sort by date (newest first), then by impression count
       const uniqueTweets = Array.from(new Map(allTweets.map(tweet => [tweet.id, tweet])).values())
-        .sort((a, b) => (b.public_metrics.impression_count ?? 0) - (a.public_metrics.impression_count ?? 0))
-        .slice(0, 25) // Top 25 tweets max
+        .sort((a, b) => {
+          // Primary sort: by date (newest first)
+          const dateA = new Date(a.created_at).getTime()
+          const dateB = new Date(b.created_at).getTime()
+          if (dateB !== dateA) return dateB - dateA
+          
+          // Secondary sort: by impression count (highest first)
+          return (b.public_metrics.impression_count ?? 0) - (a.public_metrics.impression_count ?? 0)
+        })
+        .slice(0, 50) // Top 50 tweets max (ensuring 30+ as requested)
 
       console.log(`🎯 Final result: ${uniqueTweets.length} tweets from YOUR topics only`)
 
@@ -344,14 +366,14 @@ class TwitterApiService {
     return transformedTweets
   }
 
-  // Filter tweets by impression count - STRICT: Only 10k+ impressions
+  // Filter tweets by impression count - Updated: 2k+ impressions for 6 months
   private filterHighEngagementTweets(tweets: Tweet[]): Tweet[] {
-    const threeMonthsAgo = new Date()
-    threeMonthsAgo.setDate(threeMonthsAgo.getDate() - 90) // Extended to 90 days for viral content
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180) // Extended to 180 days (6 months)
 
-    console.log(`📅 Date filter: Only tweets after ${threeMonthsAgo.toISOString()}`)
+    console.log(`📅 Date filter: Only tweets after ${sixMonthsAgo.toISOString()}`)
 
-    // STRICT filtering: Only tweets with 10k+ impressions
+    // Updated filtering: tweets with 2k+ impressions (reduced from 10k)
     const highImpressionTweets = tweets
       .filter(tweet => {
         const tweetDate = new Date(tweet.created_at)
@@ -359,8 +381,8 @@ class TwitterApiService {
         
         // Debug each tweet's filtering (only log first 3 to avoid spam)
         const shouldLog = tweets.indexOf(tweet) < 3
-        const dateOk = tweetDate >= threeMonthsAgo
-        const impressionOk = (metrics.impression_count ?? 0) >= 10000
+        const dateOk = tweetDate >= sixMonthsAgo
+        const impressionOk = (metrics.impression_count ?? 0) >= 1000 // Reduced from 2000 to get more results
         
         if (shouldLog) {
           console.log(`🔍 Tweet filter debug:`, {
@@ -382,7 +404,7 @@ class TwitterApiService {
         return (b.public_metrics.impression_count ?? 0) - (a.public_metrics.impression_count ?? 0)
       })
 
-    console.log(`🔥 STRICT filtering: ${highImpressionTweets.length} tweets with 10k+ impressions (last 90 days)`)
+    console.log(`🔥 Updated filtering: ${highImpressionTweets.length} tweets with 1k+ impressions (last 6 months)`)
     
     // Log each qualifying tweet's impression count
     if (highImpressionTweets.length > 0) {
@@ -391,10 +413,10 @@ class TwitterApiService {
         console.log(`   ${index + 1}. ${(tweet.public_metrics.impression_count ?? 0).toLocaleString()} impressions - "${tweet.text.substring(0, 40)}..."`)
       })
     } else {
-      console.log(`❌ No tweets found with 10k+ impressions in the last 90 days`)
+      console.log(`❌ No tweets found with 1k+ impressions in the last 6 months`)
     }
     
-    return highImpressionTweets.slice(0, 15) // Max 15 tweets
+    return highImpressionTweets.slice(0, 20) // Max 20 tweets (increased from 15)
   }
 
   // New broader search method with lower thresholds
@@ -412,11 +434,11 @@ class TwitterApiService {
 
       console.log('🔍 Broader engagement search query:', query)
 
-      // Lower thresholds for broader results
+      // Much lower thresholds for broader results
       const searchParams = new URLSearchParams({
-        query: `${query} -is:retweet lang:en min_faves:100 min_retweets:20`,
+        query: `${query} -is:retweet lang:en min_faves:20 min_retweets:5`,
         queryType: 'Top',
-        maxResults: maxResults.toString(),
+        maxResults: '100',
         expansions: 'referenced_tweets.id,referenced_tweets.id.author_id,author_id',
         'tweet.fields': 'conversation_id,in_reply_to_user_id,referenced_tweets,created_at,public_metrics',
         'user.fields': 'name,username,profile_image_url,verified',
@@ -451,21 +473,29 @@ class TwitterApiService {
 
   // Broader filter with lower impression threshold
   private filterBroaderEngagement(tweets: Tweet[]): Tweet[] {
-    const threeMonthsAgo = new Date()
-    threeMonthsAgo.setDate(threeMonthsAgo.getDate() - 90) // 3 months for viral content
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180) // 6 months for viral content
 
     return tweets
       .filter(tweet => {
         const tweetDate = new Date(tweet.created_at)
         const metrics = tweet.public_metrics
         
-        const dateOk = tweetDate >= threeMonthsAgo
-        const impressionOk = (metrics.impression_count ?? 0) >= 5000 // Lower threshold: 5k impressions
+        const dateOk = tweetDate >= sixMonthsAgo
+        const impressionOk = (metrics.impression_count ?? 0) >= 500 // Lower threshold: 500 impressions
         
         return dateOk && impressionOk
       })
-      .sort((a, b) => (b.public_metrics.impression_count ?? 0) - (a.public_metrics.impression_count ?? 0))
-      .slice(0, 10) // Max 10 from this search
+      .sort((a, b) => {
+        // Primary sort by date (newest first)
+        const dateA = new Date(a.created_at).getTime()
+        const dateB = new Date(b.created_at).getTime()
+        if (dateB !== dateA) return dateB - dateA
+        
+        // Secondary sort by impression count
+        return (b.public_metrics.impression_count ?? 0) - (a.public_metrics.impression_count ?? 0)
+      })
+      .slice(0, 15) // Max 15 from this search (increased from 10)
   }
 
   // New method to search individual topics with lower thresholds
@@ -476,11 +506,11 @@ class TwitterApiService {
     try {
       const cleanTopic = topic.replace(/\s+/g, ' ').trim()
       
-      // Search individual topic with very low threshold
+      // Search individual topic with minimal threshold
       const searchParams = new URLSearchParams({
-        query: `"${cleanTopic}" -is:retweet lang:en min_faves:50 min_retweets:10`,
+        query: `"${cleanTopic}" -is:retweet lang:en min_faves:10 min_retweets:2`,
         queryType: 'Top',
-        maxResults: maxResults.toString(),
+        maxResults: '50',
         expansions: 'referenced_tweets.id,referenced_tweets.id.author_id,author_id',
         'tweet.fields': 'conversation_id,in_reply_to_user_id,referenced_tweets,created_at,public_metrics',
         'user.fields': 'name,username,profile_image_url,verified',
@@ -511,23 +541,101 @@ class TwitterApiService {
     }
   }
 
-  // Filter with very low threshold for individual topics (2k+ impressions)
+  // Filter with very low threshold for individual topics (500+ impressions)
   private filterLowThreshold(tweets: Tweet[]): Tweet[] {
-    const threeMonthsAgo = new Date()
-    threeMonthsAgo.setDate(threeMonthsAgo.getDate() - 90)
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180)
 
     return tweets
       .filter(tweet => {
         const tweetDate = new Date(tweet.created_at)
         const metrics = tweet.public_metrics
         
-        const dateOk = tweetDate >= threeMonthsAgo
-        const impressionOk = (metrics.impression_count ?? 0) >= 2000 // Very low threshold: 2k impressions
+        const dateOk = tweetDate >= sixMonthsAgo
+        const impressionOk = (metrics.impression_count ?? 0) >= 200 // Very low threshold: 200 impressions
         
         return dateOk && impressionOk
       })
-      .sort((a, b) => (b.public_metrics.impression_count ?? 0) - (a.public_metrics.impression_count ?? 0))
-      .slice(0, 5) // Max 5 from each individual topic
+      .sort((a, b) => {
+        // Primary sort by date (newest first)
+        const dateA = new Date(a.created_at).getTime()
+        const dateB = new Date(b.created_at).getTime()
+        if (dateB !== dateA) return dateB - dateA
+        
+        // Secondary sort by impression count
+        return (b.public_metrics.impression_count ?? 0) - (a.public_metrics.impression_count ?? 0)
+      })
+      .slice(0, 8) // Max 8 from each individual topic (increased from 5)
+  }
+
+  // New method for very broad search with minimal requirements
+  async searchVeryBroadTopic(
+    topic: string,
+    maxResults: number = 50
+  ): Promise<TwitterApiResponse<Tweet[]>> {
+    try {
+      const cleanTopic = topic.replace(/\s+/g, ' ').trim()
+      
+      // Very broad search with minimal requirements
+      const searchParams = new URLSearchParams({
+        query: `"${cleanTopic}" -is:retweet lang:en min_faves:5`,
+        queryType: 'Top',
+        maxResults: '50',
+        expansions: 'referenced_tweets.id,referenced_tweets.id.author_id,author_id',
+        'tweet.fields': 'conversation_id,in_reply_to_user_id,referenced_tweets,created_at,public_metrics',
+        'user.fields': 'name,username,profile_image_url,verified',
+      })
+
+      const endpoint = `/twitter/tweet/advanced_search?${searchParams}`
+      const response = await this.makeRequest<any>(endpoint)
+
+      if (response.status === 'error') {
+        return response as TwitterApiResponse<Tweet[]>
+      }
+
+      const tweets = this.transformTwitterApiResponse(response.data!)
+      const filteredTweets = this.filterVeryBroadThreshold(tweets)
+
+      return {
+        status: 'success',
+        msg: `Found ${filteredTweets.length} tweets for broad topic: ${topic}`,
+        data: filteredTweets,
+      }
+    } catch (error) {
+      console.error(`Very broad topic search failed for "${topic}":`, error)
+      return {
+        status: 'error',
+        msg: `Failed to search broad topic: ${topic}`,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+  }
+
+  // Filter with very broad threshold (100+ impressions)
+  private filterVeryBroadThreshold(tweets: Tweet[]): Tweet[] {
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180)
+
+    return tweets
+      .filter(tweet => {
+        const tweetDate = new Date(tweet.created_at)
+        const metrics = tweet.public_metrics
+        
+        const dateOk = tweetDate >= sixMonthsAgo
+        const impressionOk = (metrics.impression_count ?? 0) >= 100 // Very broad threshold: 100 impressions
+        
+        return dateOk && impressionOk
+      })
+      .sort((a, b) => {
+        // Primary sort by date (newest first)
+        const dateA = new Date(a.created_at).getTime()
+        const dateB = new Date(b.created_at).getTime()
+        if (dateB !== dateA) return dateB - dateA
+        
+        // Secondary sort by impression count
+        return (b.public_metrics.impression_count ?? 0) - (a.public_metrics.impression_count ?? 0)
+      })
+      .slice(0, 10) // Max 10 from each very broad search
   }
 
   // Fetch complete thread context for a tweet

@@ -32,7 +32,7 @@ export const API_CONFIG = {
 export const TWITTER_CONFIG = {
   // Search parameters
   search: {
-    maxResults: 30,
+    maxResults: 35, // Updated: return 30+ tweets (increased from 30)
     tweetFields: [
       "id",
       "text",
@@ -46,8 +46,11 @@ export const TWITTER_CONFIG = {
     expansions: ["author_id"],
   },
   
-  // Engagement thresholds
+  // Engagement thresholds (updated for 6-month range)
   engagement: {
+    high: 2000,      // Primary threshold: 2k+ impressions (reduced from 10k)
+    medium: 1000,    // Secondary threshold: 1k+ impressions
+    low: 500,        // Fallback threshold: 500+ impressions
     minLikes: 10,
     minRetweets: 5,
     minReplies: 2,
@@ -58,6 +61,7 @@ export const TWITTER_CONFIG = {
     week: 7,
     month: 30,
     quarter: 90,
+    sixMonths: 180,  // New: 6 months filter for enhanced results
   },
 } as const;
 

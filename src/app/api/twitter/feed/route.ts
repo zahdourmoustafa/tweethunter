@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch global tweets with thread context from twitterapi.io
     console.log('🌐 Fetching global tweets with thread context from twitterapi.io...')
-    const response = await twitterApiService.searchTweetsWithThreads(userTopics, 20)
+    const response = await twitterApiService.searchTweetsWithThreads(userTopics, 50)
 
     if (response.status === 'error') {
       console.error('❌ Global TwitterAPI error:', response.msg)

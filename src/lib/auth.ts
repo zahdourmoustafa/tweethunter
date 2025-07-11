@@ -2,14 +2,15 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
+import { serverEnv } from "@/config/env.server";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
   
-  secret: process.env.BETTER_AUTH_SECRET!,
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  secret: serverEnv.BETTER_AUTH_SECRET,
+  baseURL: serverEnv.BETTER_AUTH_URL,
   
   emailAndPassword: {
     enabled: false, // We only want Twitter OAuth
@@ -17,8 +18,8 @@ export const auth = betterAuth({
   
   socialProviders: {
     twitter: {
-      clientId: process.env.TWITTER_CLIENT_ID!,
-      clientSecret: process.env.TWITTER_CLIENT_SECRET!,
+      clientId: serverEnv.TWITTER_CLIENT_ID,
+      clientSecret: serverEnv.TWITTER_CLIENT_SECRET,
     },
   },
   

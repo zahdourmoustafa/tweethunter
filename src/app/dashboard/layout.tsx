@@ -2,6 +2,7 @@ import { AuthGuard } from "@/components/auth/auth-guard";
 import { OnboardingGuard } from "@/components/auth/onboarding-guard";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { DashboardHeader } from "@/components/dashboard/header";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function DashboardLayout({
   children,
@@ -23,6 +24,7 @@ export default function DashboardLayout({
             </main>
           </div>
         </div>
+        <Toaster />
       </OnboardingGuard>
     </AuthGuard>
   );

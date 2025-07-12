@@ -110,90 +110,18 @@ export const AIToolModalV2 = ({
   }, [messages, isGenerating]);
 
   /**
-   * Clean AI response by removing conversational prefixes and introductions
+   * Clean and format AI response (simplified since new AI agent returns clean content)
    */
   const cleanAIResponse = useCallback((content: string): string => {
-    // Remove common conversational prefixes and introductions
-    const prefixPatterns = [
-      // Basic responses
-      /^Sure!\s*/i,
-      /^Of course!\s*/i,
-      /^Absolutely!\s*/i,
-      /^Certainly!\s*/i,
-      /^Perfect!\s*/i,
-      /^Great!\s*/i,
-      /^Excellent!\s*/i,
-      /^Done!\s*/i,
-      /^Okay!\s*/i,
-      /^Alright!\s*/i,
-      
-      // "Here's" patterns
-      /^Here's\s+.*?:\s*/i,
-      /^Here you go:\s*/i,
-      /^Here it is:\s*/i,
-      /^Here's the\s+.*?:\s*/i,
-      /^Here's a\s+.*?:\s*/i,
-      /^Here's an\s+.*?:\s*/i,
-      /^Here's your\s+.*?:\s*/i,
-      
-      // "I'll" and "I've" patterns
-      /^I'll\s+.*?:\s*/i,
-      /^I've\s+.*?:\s*/i,
-      /^I can\s+.*?:\s*/i,
-      /^I will\s+.*?:\s*/i,
-      /^I have\s+.*?:\s*/i,
-      
-      // "Let me" patterns
-      /^Let me\s+.*?:\s*/i,
-      /^Let's\s+.*?:\s*/i,
-      
-      // Work/help patterns
-      /^I'll help you\s+.*?:\s*/i,
-      /^I'll work on\s+.*?:\s*/i,
-      /^I'll make\s+.*?:\s*/i,
-      /^I'll create\s+.*?:\s*/i,
-      /^I'll transform\s+.*?:\s*/i,
-      /^I'll improve\s+.*?:\s*/i,
-      /^I'll enhance\s+.*?:\s*/i,
-      
-      // Version patterns
-      /^.*version.*?:\s*/i,
-      /^.*take.*?:\s*/i,
-      /^.*approach.*?:\s*/i,
-      
-      // Multi-line introductions (more aggressive)
-      /^.*?(?:help|work|make|create|transform|improve|enhance).*?\n\n/i,
-      /^.*?(?:here's|here is).*?\n\n/i,
-      
-      // Remove entire first paragraph if it contains work-related words
-      /^[^.!?]*(?:help|work|make|create|transform|improve|enhance|version|take)[^.!?]*[.!?]\s*/i,
-    ];
-
-    let cleanedContent = content;
+    // Basic cleanup - trim whitespace and remove any remaining quotes
+    let cleaned = content.trim();
     
-    // Apply all cleaning patterns
-    for (const pattern of prefixPatterns) {
-      cleanedContent = cleanedContent.replace(pattern, '');
+    // Remove quotes if they wrap the entire content
+    if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+      cleaned = cleaned.slice(1, -1);
     }
     
-    // Remove extra whitespace and newlines at the beginning
-    cleanedContent = cleanedContent.replace(/^\s+/, '');
-    
-    // If content starts with quotes, keep them
-    // If it's still conversational, try to extract the actual content
-    if (cleanedContent.includes('\n\n')) {
-      const paragraphs = cleanedContent.split('\n\n');
-      // If first paragraph seems conversational, use the second one
-      if (paragraphs.length > 1 && paragraphs[0].length < 100 && 
-          /(?:help|work|make|create|transform|improve|enhance|version)/i.test(paragraphs[0])) {
-        cleanedContent = paragraphs.slice(1).join('\n\n');
-      }
-    }
-    
-    // Final cleanup
-    cleanedContent = cleanedContent.replace(/^\s+/, '').trim();
-    
-    return cleanedContent;
+    return cleaned.trim();
   }, []);
 
   /**
@@ -361,35 +289,27 @@ export const AIToolModalV2 = ({
       // For now, we'll use a placeholder user ID - in real app, get from auth
       const userId = "user-placeholder"; // TODO: Replace with actual user ID from auth
       
-      const requestData = {
-        userId,
-        content: currentGeneration,
-        originalContent: initialContent,
-        toolUsed: toolName,
-        chatHistory: messages,
-        tags: []
-      };
-
-      console.log('Sending request data:', requestData);
-      
       const response = await fetch('/api/saved-content', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestData),
+        body: JSON.stringify({
+          userId,
+          content: currentGeneration,
+          originalContent: initialContent,
+          toolUsed: toolName,
+          chatHistory: messages,
+          tags: []
+        }),
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-      
       const result = await response.json();
-      console.log('Response data:', result);
 
       if (response.ok && result.status === 'success') {
         toast.success("💾 Content saved successfully!");
       } else {
-        throw new Error(result.error || `HTTP ${response.status}: Failed to save content`);
+        throw new Error(result.error || 'Failed to save content');
       }
     } catch (error) {
       console.error('Save failed:', error);

@@ -1,7 +1,6 @@
-import { createOpenAI } from '@ai-sdk/openai';
+import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 import { AITool } from '@/lib/types/aiTools';
-import { env } from '@/config/env';
 
 interface GenerationOptions {
   action?: string;
@@ -21,10 +20,7 @@ interface GenerationResult {
 }
 
 class StorytellerAgent {
-  private openai = createOpenAI({
-    apiKey: env.OPENAI_API_KEY,
-  });
-  private model = this.openai('gpt-4o');
+  private model = openai('gpt-4o');
 
   /**
    * Main generation method - creates viral, human-like content
@@ -35,14 +31,7 @@ class StorytellerAgent {
     options: GenerationOptions = {}
   ): Promise<GenerationResult> {
     try {
-      // Debug: Check if API key is available
-      if (!env.OPENAI_API_KEY) {
-        throw new Error('OpenAI API key is not configured');
-      }
-
       console.log('🤖 Starting AI generation with tool:', tool);
-      console.log('📝 Original content length:', originalContent.length);
-      console.log('🔑 API key available:', !!env.OPENAI_API_KEY);
       
       const systemPrompt = this.buildSystemPrompt(tool);
       const userPrompt = this.buildUserPrompt(tool, originalContent, options);
@@ -54,21 +43,24 @@ class StorytellerAgent {
         model: this.model,
         system: systemPrompt,
         prompt: userPrompt,
-        temperature: 0.9,
-        maxTokens: 400,
+        temperature: 0.7,
+        maxTokens: 1000,
       });
 
-      console.log('✅ AI generation successful');
+      console.log('✅ AI generation completed');
+      console.log('📝 Generated content length:', result.text.length);
+      console.log('🔍 Raw AI response:', result.text);
 
       return {
-        content: this.cleanAndFormatContent(result.text),
-        suggestions: this.generateQuickSuggestions(tool)
+        content: result.text.trim(),
+        reasoning: `Generated ${tool} content with human-like Twitter formatting`,
+        suggestions: []
       };
     } catch (error) {
-      console.error('❌ AI Generation failed:', error);
-      console.error('🔍 Error details:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : 'Unknown error',
+      console.error('❌ AI generation failed:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        tool,
+        originalContentLength: originalContent.length,
         stack: error instanceof Error ? error.stack?.substring(0, 500) : 'No stack trace'
       });
       throw new Error('Failed to generate content. Please try again.');
@@ -125,212 +117,228 @@ Apply the request and output ONLY the refined content:`;
   }
 
   /**
-   * Build system prompts that create viral, human-like content
+   * Build system prompt for each tool - focused on natural Twitter formatting
    */
   private buildSystemPrompt(tool: AITool): string {
-    const baseInstructions = `You are a viral content creator who writes like a successful human entrepreneur on Twitter.
+    const basePrompt = `You are a viral Twitter content creator. Generate ONLY the content, no explanations, no conversational text, no "here's your..." or "what do you think" - just pure content that looks like it was written by a human for Twitter.
 
-CRITICAL RULES:
-- Output ONLY the generated content, no explanations or conversational text
-- Never start with phrases like "Here's", "I'll generate", "What do you think", etc.
-- Write like a real human with genuine experiences and insights
-- Use natural, authentic language patterns
-- Create content that feels viral and engaging
+CRITICAL FORMATTING RULES:
+• Use bullet points (•) for lists, never numbers (1., 2., 3.)
+• Use dashes (–) for comparisons and contrasts
+• Use natural line breaks and spacing like real tweets
+• Keep sentences punchy and conversational
+• Use emojis strategically, not excessively
+• Make it sound like a real person wrote it
+• NO thread numbering (1/, 2/, 3/ etc.)
+• NO conversational wrapper text
 
-FORMATTING RULES:
-- Use natural line breaks between thoughts
-- Use bullet points with dashes (–) when listing items
-- Keep sentences punchy and scannable
-- Make it mobile-friendly with good line breaks
-- Use contractions and casual language
+CONTENT STYLE:
+• Write like you're texting a friend who's also an expert
+• Use confident, assertive language
+• Include specific details and numbers when possible
+• Use "you" to make it personal
+• Keep paragraphs short (1-3 sentences max)
+• Use strategic spacing for readability`;
 
-HUMAN-LIKE PATTERNS:
-- Start sentences with "And" or "But" naturally
-- Use authentic voice and personal touches
-- Include minor imperfections that feel human
-- Avoid AI phrases like "delve into", "furthermore", "moreover"
-- Make it conversational but not verbose`;
+    const toolSpecificPrompts = {
+      [AITool.ExpandTweet]: `${basePrompt}
 
-    return baseInstructions + '\n\n' + this.getToolSpecificSystemPrompt(tool);
+EXPAND TWEET TASK:
+Transform the tweet into a longer, more detailed version that could be a single long tweet or thread. Use natural Twitter formatting with bullet points, dashes, and proper spacing. Make it viral and engaging while maintaining authenticity.
+
+FORMAT EXAMPLE:
+"Original insight statement
+
+Here's what's really happening:
+
+• First key point
+• Second insight
+• Third revelation
+
+This changes everything.
+
+What this means for you:
+
+– Strategy 1
+– Strategy 2  
+– Strategy 3
+
+The bottom line:
+Final powerful statement."`,
+
+      [AITool.CreateHook]: `${basePrompt}
+
+CREATE HOOK TASK:
+Generate a scroll-stopping opening line that makes people want to read more. Use proven viral patterns but make it feel natural and authentic.
+
+FORMAT EXAMPLES:
+"$42K in 4 months from one simple realization:"
+"Everyone thinks AI is expensive. They're wrong."
+"I've spent $50K on courses. Here's what actually works:"`,
+
+      [AITool.MoreCasual]: `${basePrompt}
+
+MORE CASUAL TASK:
+Make the content feel like you're texting a friend. Use casual language, contractions, and relaxed tone while keeping the value intact.
+
+CASUAL PATTERNS:
+• "Look, here's the thing..."
+• "Honestly, this is wild..."
+• "I've been thinking about this..."
+• Use "you're" instead of "you are"
+• Use "can't" instead of "cannot"`,
+
+      [AITool.MoreAssertive]: `${basePrompt}
+
+MORE ASSERTIVE TASK:
+Make the content more confident and authoritative. Use strong, decisive language that positions you as an expert.
+
+ASSERTIVE PATTERNS:
+• "Here's what most people get wrong:"
+• "This is exactly how..."
+• "Stop doing X. Start doing Y."
+• "The truth is..."
+• Use definitive statements, not suggestions`,
+
+      [AITool.AddEmojis]: `${basePrompt}
+
+ADD EMOJIS TASK:
+Add strategic emojis that enhance the message without making it look childish. Use 1-3 emojis max per section.
+
+EMOJI STRATEGY:
+• 📈 for growth/metrics
+• 🎯 for goals/targets
+• 💡 for insights
+• 🔥 for trending/hot content
+• ✅ for completed actions
+• 🚀 for launches/momentum`,
+
+      [AITool.MakeShorter]: `${basePrompt}
+
+MAKE SHORTER TASK:
+Condense the content while keeping the core message and impact. Remove fluff but maintain the engaging tone.
+
+SHORTENING RULES:
+• Keep the most impactful points
+• Combine related ideas
+• Remove redundant words
+• Maintain the hook and conclusion`,
+
+      [AITool.FixGrammar]: `${basePrompt}
+
+FIX GRAMMAR TASK:
+Correct grammar, spelling, and punctuation while maintaining the casual, authentic tone. Don't make it too formal.
+
+GRAMMAR RULES:
+• Fix obvious errors
+• Keep contractions for casual tone
+• Ensure proper punctuation
+• Maintain original voice and style`,
+
+      [AITool.MoreFormal]: `${basePrompt}
+
+MORE FORMAL TASK:
+Make the content more professional while keeping it engaging. Use complete sentences and proper grammar.
+
+FORMAL PATTERNS:
+• "Research shows..."
+• "According to data..."
+• "The key insight is..."
+• "This demonstrates..."
+• Use complete sentences, avoid slang`,
+
+      [AITool.CopywritingTips]: `${basePrompt}
+
+COPYWRITING TIPS TASK:
+Improve the persuasive elements using proven copywriting principles. Focus on benefits, social proof, and clear value propositions.
+
+COPYWRITING PRINCIPLES:
+• Lead with benefits, not features
+• Use social proof (numbers, testimonials)
+• Create urgency when appropriate
+• Address objections
+• End with clear value statement`,
+
+             [AITool.KeepWriting]: `${basePrompt}
+
+KEEP WRITING TASK:
+Continue the content naturally, expanding on the existing ideas with more value, examples, or insights.
+
+CONTINUATION RULES:
+• Build on existing themes
+• Add new valuable insights
+• Maintain consistent tone
+• Provide concrete examples
+• End with strong conclusion`,
+
+       [AITool.CreateCTA]: `${basePrompt}
+
+CREATE CTA TASK:
+Add a natural call-to-action that doesn't feel pushy. Make it feel like genuine curiosity about others' experiences.
+
+CTA PATTERNS:
+• "What's your take on this?"
+• "Been there? Drop a comment"
+• "Anyone else seeing this trend?"
+• "Share your experience below"
+• Keep it conversational and authentic`,
+
+       [AITool.ImproveTweet]: `${basePrompt}
+
+IMPROVE TWEET TASK:
+Polish the content while keeping authentic voice. Enhance clarity, impact, and engagement potential.
+
+IMPROVEMENT FOCUS:
+• Strengthen weak points
+• Add more emotional impact
+• Improve readability
+• Make it more shareable
+• Maintain human authenticity`,
+
+       [AITool.TweetIdeas]: `${basePrompt}
+
+TWEET IDEAS TASK:
+Generate 3-4 related tweet ideas that build on the concept. Make each idea unique and valuable.
+
+IDEAS FORMAT:
+• Idea 1: [Brief compelling tweet]
+• Idea 2: [Different angle on same topic]
+• Idea 3: [Contrarian or surprising take]
+• Idea 4: [Actionable insight]
+
+Keep each idea concise but complete.`
+     };
+
+     return toolSpecificPrompts[tool] || basePrompt;
   }
 
   /**
-   * Tool-specific system prompts
-   */
-  private getToolSpecificSystemPrompt(tool: AITool): string {
-    switch (tool) {
-      case AITool.ExpandTweet:
-        return `EXPAND TWEET TASK:
-Transform into a compelling 3-4 tweet thread. Format each tweet clearly with thread indicators.
-Make each tweet valuable on its own while building the narrative.
-Use authentic storytelling and personal insights.`;
-
-      case AITool.CreateHook:
-        return `CREATE HOOK TASK:
-Generate an irresistible opening that stops scrolling.
-Use curiosity, emotion, or bold statements.
-Make it feel like authentic human insight.`;
-
-      case AITool.AddEmojis:
-        return `ADD EMOJIS TASK:
-Strategically place emojis to enhance emotion and visual appeal.
-Use them naturally like a real person would.
-Don't overdo it - quality over quantity.`;
-
-      case AITool.MakeShorter:
-        return `MAKE SHORTER TASK:
-Condense while keeping maximum impact.
-Remove fluff but preserve personality and punch.
-Make every word count.`;
-
-      case AITool.MoreAssertive:
-        return `MORE ASSERTIVE TASK:
-Make the tone more confident and direct.
-Use strong, decisive language.
-Show conviction and authority.`;
-
-      case AITool.MoreCasual:
-        return `MORE CASUAL TASK:
-Make it feel like texting a friend.
-Use relaxed language and contractions.
-Add warmth and approachability.`;
-
-      case AITool.MoreFormal:
-        return `MORE FORMAL TASK:
-Elevate the language while keeping it human.
-Use professional tone but stay relatable.
-Sound expert but not stuffy.`;
-
-      case AITool.CreateCTA:
-        return `CREATE CTA TASK:
-Add a natural call-to-action that doesn't feel pushy.
-Make it feel like genuine curiosity about others' experiences.
-Use authentic engagement patterns.`;
-
-      case AITool.ImproveTweet:
-        return `IMPROVE TWEET TASK:
-Polish the content while keeping authentic voice.
-Enhance clarity, impact, and engagement potential.
-Make it more viral and shareable.`;
-
-      case AITool.FixGrammar:
-        return `FIX GRAMMAR TASK:
-Correct grammar and spelling while preserving natural voice.
-Keep the personality intact.
-Make it polished but not robotic.`;
-
-      case AITool.TweetIdeas:
-        return `TWEET IDEAS TASK:
-Generate 3-4 related tweet ideas that build on the concept.
-Make each idea unique and valuable.
-Format as separate tweet concepts.`;
-
-      case AITool.CopywritingTips:
-        return `COPYWRITING TIPS TASK:
-Provide 3-4 actionable copywriting insights based on the content.
-Make them practical and specific.
-Format as clear, valuable tips.`;
-
-      case AITool.KeepWriting:
-        return `KEEP WRITING TASK:
-Continue the thought naturally from where it left off.
-Maintain the same voice and style.
-Add valuable insights or examples.`;
-
-      default:
-        return `ENHANCE CONTENT TASK:
-Improve the content while keeping it authentic and engaging.
-Make it more viral and human-like.`;
-    }
-  }
-
-  /**
-   * Build user prompts with examples and context
+   * Build user prompt with original content and context
    */
   private buildUserPrompt(
     tool: AITool,
     originalContent: string,
     options: GenerationOptions
   ): string {
-    const contextInfo = this.buildContextInfo(options);
-    const examples = this.getToolExamples(tool);
-    
-    return `${contextInfo}
+    const basePrompt = `Original content:
+"${originalContent}"
 
-${examples}
+Generate the improved version following the system instructions. Return ONLY the content, no explanations or wrapper text.`;
 
-Original content: "${originalContent}"
+    // Add context-specific instructions
+    if (options.context?.topic) {
+      return `${basePrompt}
 
-Generate the ${tool.replace('-', ' ')} version:`;
-  }
-
-  /**
-   * Build context information
-   */
-  private buildContextInfo(options: GenerationOptions): string {
-    let context = '';
-    
-    if (options.action) {
-      context += `Quick action: ${options.action}\n`;
+Topic context: ${options.context.topic}`;
     }
-    
+
     if (options.customPrompt) {
-      context += `Custom instruction: ${options.customPrompt}\n`;
+      return `${basePrompt}
+
+Additional instructions: ${options.customPrompt}`;
     }
-    
-    return context;
-  }
 
-  /**
-   * Get tool-specific examples
-   */
-  private getToolExamples(tool: AITool): string {
-    switch (tool) {
-      case AITool.ExpandTweet:
-        return `Example viral thread format:
-1/ Main insight or hook
-
-2/ Supporting detail or story
-Break thoughts into digestible pieces
-
-3/ Key takeaway or lesson
-Make it actionable
-
-4/ Strong conclusion or question
-Drive engagement`;
-
-      case AITool.CreateHook:
-        return `Example viral hooks:
-– "Almost $100k in 4 months"
-– "Nobody talks about this..."
-– "I made every mistake so you don't have to"
-– "The thing they don't tell you about..."`;
-
-      case AITool.MoreCasual:
-        return `Example casual style:
-– Use contractions (don't, won't, can't)
-– Start with "And" or "But"
-– Add personal touches
-– Use everyday language`;
-
-      case AITool.MakeShorter:
-        return `Example shortened format:
-Remove:
-– Unnecessary words
-– Redundant phrases
-– Filler content
-Keep:
-– Core message
-– Emotional impact
-– Key insights`;
-
-      default:
-        return `Example viral tweet patterns:
-– Use line breaks for emphasis
-– Add bullet points with dashes (–)
-– Keep it scannable
-– Make it feel authentic`;
-    }
+    return basePrompt;
   }
 
   /**
@@ -409,6 +417,5 @@ Keep:
   }
 }
 
-// Export singleton instance
 export const storytellerAgent = new StorytellerAgent();
 export type { GenerationOptions, GenerationResult };

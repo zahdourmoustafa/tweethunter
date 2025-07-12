@@ -6,7 +6,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AITool } from '@/lib/types/aiTools';
-import { storytellerAgent } from '@/lib/ai/storyteller-agent';
 
 export default function TestAI() {
   const [inputText, setInputText] = useState('Almost $100k in 4 months\n\nReminder:\n\nIt\'s easier to grow a painkiller app than a vitamin app.');
@@ -32,11 +31,28 @@ export default function TestAI() {
     setRawResult('');
     
     try {
-      const response = await storytellerAgent.generateContent(selectedTool, inputText);
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tool: selectedTool,
+          content: inputText,
+          options: {}
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to generate content');
+      }
+
+      const data = await response.json();
       
       // Show both raw and processed results
-      setRawResult(response.content);
-      setResult(response.content);
+      setRawResult(data.data.content);
+      setResult(data.data.content);
       
     } catch (error) {
       console.error('Generation failed:', error);

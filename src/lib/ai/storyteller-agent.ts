@@ -76,21 +76,17 @@ class StorytellerAgent {
     conversationHistory: any[] = []
   ): Promise<GenerationResult> {
     try {
-      const systemPrompt = `You are a viral content creator. Output ONLY the refined content, no explanations or conversational text.
+      const systemPrompt = `You are a viral Twitter content creator. Output ONLY the refined content, no explanations or conversational text.
 
-Apply the user's request to the content. Common requests:
-- "longer" = expand with more detail/examples
-- "shorter" = condense while keeping impact  
-- "funnier" = add appropriate humor
-- "more personal" = add personal touch/experience
-- "less formal" = make more casual
-- "add story" = weave in narrative elements
-
-Format like viral tweets:
-- Natural line breaks between thoughts
-- Use bullet points (•) and dashes (–) when listing
-- Authentic, conversational tone
-- No AI-like phrases
+CRITICAL FORMATTING RULES - ALWAYS FOLLOW:
+• Use bullet points (•) for lists, never numbers (1., 2., 3.)
+• Use dashes (–) for comparisons and contrasts
+• Use natural line breaks and spacing like real tweets
+• Keep sentences punchy and conversational
+• Use emojis strategically, not excessively
+• Make it sound like a real person wrote it
+• NO thread numbering (1/, 2/, 3/ etc.)
+• NO conversational wrapper text
 
 ABSOLUTELY FORBIDDEN - NEVER INCLUDE:
 • "RT + comment" or "RT and comment" requests
@@ -104,7 +100,25 @@ ABSOLUTELY FORBIDDEN - NEVER INCLUDE:
 • Social media engagement bait
 • "What do you think?" endings
 
-Focus on delivering value and insights, not gaining followers.`;
+CONTENT STYLE:
+• Write like you're texting a friend who's also an expert
+• Use confident, assertive language
+• Include specific details and numbers when possible
+• Use "you" to make it personal
+• Keep paragraphs short (1-3 sentences max)
+• Use strategic spacing for readability
+• End with valuable insights, not promotional asks
+• Focus on delivering value, not gaining followers
+
+USER REQUEST HANDLING:
+- "longer" = expand with more examples/details using bullet points and proper spacing
+- "shorter" = condense while keeping Twitter formatting and impact  
+- "funnier" = add appropriate humor with same formatting rules
+- "more personal" = add personal touch using conversational tone
+- "less formal" = make more casual but keep bullet points and structure
+- "add story" = weave in narrative elements with proper line breaks
+
+ALWAYS maintain Twitter formatting regardless of the request.`;
 
       const userPrompt = `Current content: "${currentContent}"
 
@@ -116,12 +130,32 @@ Apply the request and output ONLY the refined content:`;
         model: this.model,
         system: systemPrompt,
         prompt: userPrompt,
-        temperature: 0.8,
-        maxTokens: 350,
+        temperature: 0.7,
+        maxTokens: 500,
+      });
+
+      // Apply the same cleaning and formatting as the main generation
+      let cleanedContent = this.cleanAndFormatContent(result.text);
+      
+      // Additional cleaning for conversational refinements
+      const refinementPhrases = [
+        /^here's the longer version:?\s*/i,
+        /^here's the expanded version:?\s*/i,
+        /^here's a longer take:?\s*/i,
+        /^expanded version:?\s*/i,
+        /^longer version:?\s*/i,
+        /^here's more detail:?\s*/i,
+        /^with more details:?\s*/i,
+        /^i've expanded it:?\s*/i,
+        /^i've made it longer:?\s*/i,
+      ];
+      
+      refinementPhrases.forEach(phrase => {
+        cleanedContent = cleanedContent.replace(phrase, '');
       });
 
       return {
-        content: this.cleanAndFormatContent(result.text),
+        content: cleanedContent.trim(),
         reasoning: `Applied: ${userMessage}`
       };
     } catch (error) {

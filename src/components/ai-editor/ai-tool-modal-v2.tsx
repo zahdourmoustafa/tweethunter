@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -67,19 +67,27 @@ export const AIToolModalV2 = ({
     clearError 
   } = useAIGeneration();
 
+  // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setMessages(existingMessages);
-      setInputMessage("");
-      setCurrentGeneration(existingGeneration || "");
-      clearConversation();
-      clearError();
-      // Only auto-generate if no existing content
-      if (!existingGeneration && !existingMessages.length) {
-        handleInitialGenerate();
+      // Only reset if we don't have existing messages
+      if (!existingMessages || existingMessages.length === 0) {
+        setMessages([]);
+        setCurrentGeneration("");
+        clearConversation();
+        clearError();
+        // Auto-generate initial content
+        if (initialContent.trim()) {
+          handleInitialGenerate();
+        }
+      } else {
+        // Load existing conversation
+        setMessages(existingMessages);
+        setCurrentGeneration(existingGeneration || "");
       }
+      setInputMessage("");
     }
-  }, [isOpen, existingMessages, existingGeneration, clearConversation, clearError]);
+  }, [isOpen]);
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
@@ -260,7 +268,7 @@ export const AIToolModalV2 = ({
   /**
    * Handle custom chat messages
    */
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (!inputMessage.trim()) return;
 
     // Add user message
@@ -301,7 +309,7 @@ export const AIToolModalV2 = ({
       console.error('Chat failed:', error);
       toast.error("Failed to process message. Please try again.");
     }
-  };
+  }, [inputMessage, currentGeneration, handleInitialGenerate, chatRefine, onApply]);
 
   /**
    * Regenerate content

@@ -336,43 +336,45 @@ export const AIToolModalV2 = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl w-full max-h-[85vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-4xl w-full max-h-[90vh] sm:max-h-[85vh] flex flex-col p-0 gap-0 mx-4 sm:mx-auto">
         {/* Header */}
-        <DialogHeader className="p-4 pb-3 border-b shrink-0 bg-gray-50">
+        <DialogHeader className="p-3 sm:p-4 pb-2 sm:pb-3 border-b shrink-0 bg-gray-50">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white">
-                {toolIcon}
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-black rounded-full flex items-center justify-center text-white shrink-0">
+                <div className="scale-75 sm:scale-100">
+                  {toolIcon}
+                </div>
               </div>
-              <div>
-                <DialogTitle className="text-base font-medium">{toolName}</DialogTitle>
-                <p className="text-xs text-gray-600">{toolDescription}</p>
+              <div className="min-w-0 flex-1">
+                <DialogTitle className="text-sm sm:text-base font-medium truncate">{toolName}</DialogTitle>
+                <p className="text-xs text-gray-600 truncate">{toolDescription}</p>
               </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0 ml-2">
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={handleRegenerate}
                 disabled={isGenerating}
-                className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600"
+                className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-gray-400 hover:text-gray-600"
                 title="Regenerate"
               >
-                <RefreshCw className={`h-4 w-4 ${isGenerating ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 ${isGenerating ? 'animate-spin' : ''}`} />
               </Button>
               <Button 
                 variant="ghost" 
                 size="sm"
                 onClick={handleCopy}
                 disabled={!currentGeneration}
-                className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600"
+                className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-gray-400 hover:text-gray-600"
                 title="Copy latest result"
               >
-                <Copy className="h-4 w-4" />
+                <Copy className="h-3 w-3 sm:h-4 sm:w-4" />
               </Button>
               <DialogClose asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600">
-                  <X className="h-4 w-4" />
+                <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-gray-400 hover:text-gray-600">
+                  <X className="h-3 w-3 sm:h-4 sm:w-4" />
                 </Button>
               </DialogClose>
             </div>
@@ -382,36 +384,36 @@ export const AIToolModalV2 = ({
         {/* Chat Messages Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto" ref={scrollAreaRef}>
-            <div className="p-4 space-y-4">
+            <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
               {messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  className={`flex gap-2 sm:gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   {message.role === 'assistant' && (
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white shrink-0">
-                      <Bot className="h-4 w-4" />
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-600 rounded-full flex items-center justify-center text-white shrink-0">
+                      <Bot className="h-3 w-3 sm:h-4 sm:w-4" />
                     </div>
                   )}
                   
-                  <div className={`max-w-[80%] ${message.role === 'user' ? 'order-first' : ''}`}>
+                  <div className={`max-w-[85%] sm:max-w-[80%] ${message.role === 'user' ? 'order-first' : ''}`}>
                     <div
-                      className={`rounded-lg px-4 py-3 text-sm leading-relaxed ${
+                      className={`rounded-lg px-3 py-2 sm:px-4 sm:py-3 text-sm leading-relaxed ${
                         message.role === 'user'
                           ? 'bg-blue-600 text-white ml-auto'
                           : 'bg-gray-100 text-gray-900'
                       }`}
                     >
-                      <div className="whitespace-pre-wrap">{message.content}</div>
+                      <div className="whitespace-pre-wrap break-words">{message.content}</div>
                     </div>
-                    <div className={`text-xs text-gray-500 mt-1 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
+                    <div className={`text-xs text-gray-500 mt-1 px-1 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
                       {formatTime(message.timestamp)}
                     </div>
                   </div>
 
                   {message.role === 'user' && (
-                    <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center text-white shrink-0">
-                      <User className="h-4 w-4" />
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-600 rounded-full flex items-center justify-center text-white shrink-0">
+                      <User className="h-3 w-3 sm:h-4 sm:w-4" />
                     </div>
                   )}
                 </div>
@@ -419,13 +421,13 @@ export const AIToolModalV2 = ({
 
               {/* Loading indicator */}
               {isGenerating && (
-                <div className="flex gap-3 justify-start">
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white shrink-0">
-                    <Bot className="h-4 w-4" />
+                <div className="flex gap-2 sm:gap-3 justify-start">
+                  <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-600 rounded-full flex items-center justify-center text-white shrink-0">
+                    <Bot className="h-3 w-3 sm:h-4 sm:w-4" />
                   </div>
-                  <div className="bg-gray-100 rounded-lg px-4 py-3">
+                  <div className="bg-gray-100 rounded-lg px-3 py-2 sm:px-4 sm:py-3">
                     <div className="flex items-center gap-2 text-gray-600">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
                       <span className="text-sm">Thinking...</span>
                     </div>
                   </div>
@@ -434,12 +436,12 @@ export const AIToolModalV2 = ({
 
               {/* Error display */}
               {error && (
-                <div className="flex gap-3 justify-start">
-                  <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white shrink-0">
-                    <AlertCircle className="h-4 w-4" />
+                <div className="flex gap-2 sm:gap-3 justify-start">
+                  <div className="w-6 h-6 sm:w-8 sm:h-8 bg-red-500 rounded-full flex items-center justify-center text-white shrink-0">
+                    <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                   </div>
-                  <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
-                    {error}
+                  <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 sm:px-4 sm:py-3 text-sm text-red-700 max-w-[85%] sm:max-w-[80%]">
+                    <div className="break-words">{error}</div>
                   </div>
                 </div>
               )}
@@ -449,8 +451,8 @@ export const AIToolModalV2 = ({
         
         {/* Quick Actions */}
         {messages.length > 0 && !isGenerating && (
-          <div className="px-4 py-2 border-t bg-gray-50">
-            <div className="flex flex-wrap gap-2">
+          <div className="px-3 sm:px-4 py-2 border-t bg-gray-50">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {QUICK_ACTIONS.map((action) => (
                 <Button
                   key={action}
@@ -458,7 +460,7 @@ export const AIToolModalV2 = ({
                   size="sm"
                   onClick={() => handleQuickAction(action)}
                   disabled={isGenerating}
-                  className="text-xs h-7 px-3 text-gray-600 border-gray-200 hover:bg-white"
+                  className="text-xs h-6 sm:h-7 px-2 sm:px-3 text-gray-600 border-gray-200 hover:bg-white flex-shrink-0"
                 >
                   {action}
                 </Button>
@@ -468,13 +470,13 @@ export const AIToolModalV2 = ({
         )}
         
         {/* Chat Input */}
-        <div className="border-t p-4 shrink-0 bg-white">
+        <div className="border-t p-3 sm:p-4 shrink-0 bg-white">
           <div className="relative">
             <Textarea
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder="Ask me to modify the content, or give me specific instructions..."
-              className="pr-12 text-sm resize-none border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              className="pr-10 sm:pr-12 text-sm resize-none border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[60px] sm:min-h-[80px]"
               rows={2}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -485,11 +487,11 @@ export const AIToolModalV2 = ({
             />
             <Button
               size="icon"
-              className="absolute right-2 bottom-2 h-8 w-8 rounded-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300"
+              className="absolute right-2 bottom-2 h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300"
               onClick={handleSendMessage}
               disabled={isGenerating || !inputMessage.trim()}
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
           </div>
         </div>

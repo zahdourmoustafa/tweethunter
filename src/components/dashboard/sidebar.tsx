@@ -29,6 +29,11 @@ const navigation = [
     icon: Lightbulb,
   },
   {
+    name: "Generated Content",
+    href: "/dashboard/generated",
+    icon: Sparkles,
+  },
+  {
     name: "Saved Content",
     href: "/dashboard/saved",
     icon: Bookmark,

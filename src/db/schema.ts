@@ -278,3 +278,25 @@ export type NewUserSeenTweet = typeof userSeenTweets.$inferInsert;
 
 export type SimilarAccount = typeof similarAccounts.$inferSelect;
 export type NewSimilarAccount = typeof similarAccounts.$inferInsert;
+
+// Saved AI-generated content
+export const savedContent = pgTable("saved_content", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  title: text("title").notNull(), // Auto-generated title from first few words
+  content: text("content").notNull(), // The actual tweet content
+  originalContent: text("original_content"), // The original content that was improved
+  toolUsed: text("tool_used").notNull(), // Which AI tool was used
+  chatHistory: jsonb("chat_history").$type<Array<{
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: string; // Store as ISO string for JSON compatibility
+  }>>().default([]), // Store the entire chat conversation
+  tags: jsonb("tags").$type<string[]>().default([]), // User-defined tags
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type SavedContent = typeof savedContent.$inferSelect;
+export type NewSavedContent = typeof savedContent.$inferInsert;

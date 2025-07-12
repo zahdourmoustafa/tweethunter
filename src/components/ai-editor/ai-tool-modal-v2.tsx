@@ -11,7 +11,8 @@ import {
   Send,
   AlertCircle,
   User,
-  Bot
+  Bot,
+  Save
 } from "lucide-react";
 import { useAIGeneration } from "@/hooks/use-ai-generation";
 import { AITool } from "@/lib/types/aiTools";
@@ -26,6 +27,9 @@ interface AIToolModalProps {
   toolId: AITool;
   initialContent: string;
   onApply: (content: string) => void;
+  // New props for continuing existing conversations
+  existingMessages?: ChatMessage[];
+  existingGeneration?: string;
 }
 
 interface ChatMessage {
@@ -45,11 +49,13 @@ export const AIToolModalV2 = ({
   toolDescription,
   toolId,
   initialContent,
-  onApply
+  onApply,
+  existingMessages = [],
+  existingGeneration
 }: AIToolModalProps) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(existingMessages);
   const [inputMessage, setInputMessage] = useState("");
-  const [currentGeneration, setCurrentGeneration] = useState("");
+  const [currentGeneration, setCurrentGeneration] = useState(existingGeneration || "");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const { 
@@ -63,15 +69,17 @@ export const AIToolModalV2 = ({
 
   useEffect(() => {
     if (isOpen) {
-      setMessages([]);
+      setMessages(existingMessages);
       setInputMessage("");
-      setCurrentGeneration("");
+      setCurrentGeneration(existingGeneration || "");
       clearConversation();
       clearError();
-      // Auto-generate initial content
-      handleInitialGenerate();
+      // Only auto-generate if no existing content
+      if (!existingGeneration && !existingMessages.length) {
+        handleInitialGenerate();
+      }
     }
-  }, [isOpen, clearConversation, clearError]);
+  }, [isOpen, existingMessages, existingGeneration, clearConversation, clearError]);
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
@@ -323,6 +331,47 @@ export const AIToolModalV2 = ({
   };
 
   /**
+   * Save content to database
+   */
+  const handleSaveContent = async () => {
+    if (!currentGeneration) {
+      toast.error("No content to save");
+      return;
+    }
+
+    try {
+      // For now, we'll use a placeholder user ID - in real app, get from auth
+      const userId = "user-placeholder"; // TODO: Replace with actual user ID from auth
+      
+      const response = await fetch('/api/saved-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          content: currentGeneration,
+          originalContent: initialContent,
+          toolUsed: toolName,
+          chatHistory: messages,
+          tags: []
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        toast.success("💾 Content saved successfully!");
+      } else {
+        throw new Error(result.error || 'Failed to save content');
+      }
+    } catch (error) {
+      console.error('Save failed:', error);
+      toast.error("Failed to save content. Please try again.");
+    }
+  };
+
+  /**
    * Copy latest generation to clipboard
    */
   const handleCopy = async () => {
@@ -362,6 +411,16 @@ export const AIToolModalV2 = ({
               </div>
             </div>
             <div className="flex items-center gap-1 shrink-0 ml-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleSaveContent}
+                disabled={!currentGeneration}
+                className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all duration-200 hover:scale-110"
+                title="Save content"
+              >
+                <Save className="h-3 w-3 sm:h-4 sm:w-4" />
+              </Button>
               <Button 
                 variant="ghost" 
                 size="sm" 

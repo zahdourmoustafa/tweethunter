@@ -313,14 +313,15 @@ const InspirationsPage = () => {
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set())
   const { setOriginalTweet, setCurrentContent } = useEditorContext()
 
-  const fetchTweets = async () => {
+  const fetchTweets = async (forceRefresh = false) => {
     try {
       setLoading(true)
       setError(null)
       
       console.log('🔥 Fetching enhanced inspiration feed...')
       
-      const response = await fetch('/api/inspiration/feed?limit=50')
+      const refreshParam = forceRefresh ? '&refresh=true' : ''
+      const response = await fetch(`/api/inspiration/feed?limit=50${refreshParam}`)
       const data: ApiResponse = await response.json()
       
       if (!response.ok || data.status === 'error') {
@@ -337,6 +338,31 @@ const InspirationsPage = () => {
       console.error('❌ Fetch error:', errorMessage)
       setError(errorMessage)
       setTweets([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const clearSeenHistory = async () => {
+    try {
+      setLoading(true)
+      
+      const response = await fetch('/api/inspiration/feed', {
+        method: 'POST',
+      })
+      
+      const result = await response.json()
+      
+      if (result.status === 'success') {
+        toast.success("🎉 Getting completely fresh content for you!")
+        await fetchTweets(true) // Force refresh after clearing
+      } else {
+        throw new Error(result.error || 'Failed to refresh content')
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to refresh content'
+      console.error('❌ Refresh error:', errorMessage)
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -543,7 +569,7 @@ const InspirationsPage = () => {
             </div>
             <div>
               <Button
-                onClick={fetchTweets}
+                onClick={clearSeenHistory}
                 disabled={loading}
                 className="flex items-center gap-2"
               >
@@ -605,14 +631,14 @@ const InspirationsPage = () => {
                 <p className="text-gray-600 mb-4">
                   {error}
                 </p>
-              <Button
-                onClick={fetchTweets}
-                disabled={loading}
+                              <Button
+                  onClick={clearSeenHistory}
+                  disabled={loading}
                   className="flex items-center gap-2"
-              >
+                >
                   <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Get Fresh Content
-              </Button>
+                  Get Fresh Content
+                </Button>
               </div>
             </div>
           </div>
@@ -665,12 +691,12 @@ const InspirationsPage = () => {
                 </p>
                 <div className="flex gap-2 justify-center">
                   <Button 
-                    onClick={fetchTweets}
+                    onClick={clearSeenHistory}
                     variant="outline"
                     className="flex items-center gap-2"
                   >
                     <RefreshCw className="h-4 w-4" />
-                    Refresh Content
+                    Get Fresh Content
                   </Button>
                   <Button 
                     asChild

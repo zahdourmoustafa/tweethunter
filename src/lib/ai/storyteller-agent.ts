@@ -88,9 +88,23 @@ Apply the user's request to the content. Common requests:
 
 Format like viral tweets:
 - Natural line breaks between thoughts
-- Use bullet points with dashes (–) when listing
+- Use bullet points (•) and dashes (–) when listing
 - Authentic, conversational tone
-- No AI-like phrases`;
+- No AI-like phrases
+
+ABSOLUTELY FORBIDDEN - NEVER INCLUDE:
+• "RT + comment" or "RT and comment" requests
+• "Drop a comment" or "Comment below"
+• "DM me" or "slide into DMs"
+• "Must follow to get"
+• "Like and retweet"
+• "Tag a friend"
+• Growth hacker tactics
+• Promotional calls-to-action
+• Social media engagement bait
+• "What do you think?" endings
+
+Focus on delivering value and insights, not gaining followers.`;
 
       const userPrompt = `Current content: "${currentContent}"
 
@@ -132,13 +146,27 @@ CRITICAL FORMATTING RULES:
 • NO thread numbering (1/, 2/, 3/ etc.)
 • NO conversational wrapper text
 
+ABSOLUTELY FORBIDDEN - NEVER INCLUDE:
+• "RT + comment" or "RT and comment" requests
+• "Drop a comment" or "Comment below"
+• "DM me" or "slide into DMs"
+• "Must follow to get"
+• "Like and retweet"
+• "Tag a friend"
+• Growth hacker tactics
+• Promotional calls-to-action
+• Social media engagement bait
+• "What do you think?" endings
+
 CONTENT STYLE:
 • Write like you're texting a friend who's also an expert
 • Use confident, assertive language
 • Include specific details and numbers when possible
 • Use "you" to make it personal
 • Keep paragraphs short (1-3 sentences max)
-• Use strategic spacing for readability`;
+• Use strategic spacing for readability
+• End with valuable insights, not promotional asks
+• Focus on delivering value, not gaining followers`;
 
     const toolSpecificPrompts = {
       [AITool.ExpandTweet]: `${basePrompt}
@@ -274,14 +302,17 @@ CONTINUATION RULES:
        [AITool.CreateCTA]: `${basePrompt}
 
 CREATE CTA TASK:
-Add a natural call-to-action that doesn't feel pushy. Make it feel like genuine curiosity about others' experiences.
+Add a natural ending that encourages engagement WITHOUT promotional tactics. Focus on genuine connection and value delivery.
 
-CTA PATTERNS:
-• "What's your take on this?"
-• "Been there? Drop a comment"
-• "Anyone else seeing this trend?"
-• "Share your experience below"
-• Keep it conversational and authentic`,
+NATURAL ENDING PATTERNS:
+• "Anyone else experiencing this?"
+• "This changes everything for [audience]"
+• "The reality is more nuanced than this"
+• "Worth considering next time you [relevant action]"
+• "Makes you think differently about [topic]"
+• Keep it conversational and authentic
+• NO requests for likes, retweets, or follows
+• NO "drop a comment" or "DM me" requests`,
 
        [AITool.ImproveTweet]: `${basePrompt}
 
@@ -375,11 +406,35 @@ Additional instructions: ${options.customPrompt}`;
       cleaned = cleaned.slice(1, -1);
     }
     
+    // Remove promotional/engagement bait content
+    const promotionalPhrases = [
+      /RT\s*\+\s*comment.*$/gmi,
+      /like\s*\+\s*retweet.*$/gmi,
+      /drop\s+a\s+comment.*$/gmi,
+      /comment\s+below.*$/gmi,
+      /dm\s+me.*$/gmi,
+      /slide\s+into.*dm.*$/gmi,
+      /must\s+follow\s+to\s+get.*$/gmi,
+      /follow\s+for\s+more.*$/gmi,
+      /tag\s+a\s+friend.*$/gmi,
+      /share\s+if\s+you\s+agree.*$/gmi,
+      /what\s+do\s+you\s+think\?.*$/gmi,
+      /\(must\s+follow.*\)$/gmi,
+      /want\s+the\s+full\s+playbook\?.*$/gmi,
+      /interested\s+in\s+learning\s+more\?.*$/gmi,
+    ];
+    
+    promotionalPhrases.forEach(phrase => {
+      cleaned = cleaned.replace(phrase, '');
+    });
+    
     // Remove trailing phrases
     const trailingPhrases = [
       /\s+what\s+do\s+you\s+think\?$/i,
       /\s+how\s+does\s+this\s+sound\?$/i,
       /\s+let\s+me\s+know\s+if\s+you'd\s+like\s+changes\.$/i,
+      /\s+drop\s+your\s+thoughts\s+below\.$/i,
+      /\s+share\s+your\s+experience\.$/i,
     ];
     
     trailingPhrases.forEach(phrase => {

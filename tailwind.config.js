@@ -17,6 +17,57 @@ module.exports = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["var(--font-bricolage-grotesque)", "system-ui", "sans-serif"],
+        mono: ["var(--font-geist-mono)", "monospace"],
+        // AI Chat Animations
+        "message-in": {
+          "0%": { 
+            opacity: "0", 
+            transform: "translateY(10px) scale(0.95)" 
+          },
+          "100%": { 
+            opacity: "1", 
+            transform: "translateY(0) scale(1)" 
+          },
+        },
+        "typing-dots": {
+          "0%, 60%, 100%": { 
+            transform: "translateY(0)" 
+          },
+          "30%": { 
+            transform: "translateY(-10px)" 
+          },
+        },
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        "slide-up": {
+          "0%": { 
+            opacity: "0", 
+            transform: "translateY(20px)" 
+          },
+          "100%": { 
+            opacity: "1", 
+            transform: "translateY(0)" 
+          },
+        },
+        "scale-in": {
+          "0%": { 
+            opacity: "0", 
+            transform: "scale(0.9)" 
+          },
+          "100%": { 
+            opacity: "1", 
+            transform: "scale(1)" 
+          },
+        },
+        "pulse-soft": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.7" },
+        },
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -70,6 +121,13 @@ module.exports = {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        // AI Chat Animations
+        "message-in": "message-in 0.3s ease-out",
+        "typing-dots": "typing-dots 1.4s infinite ease-in-out",
+        "fade-in": "fade-in 0.2s ease-out",
+        "slide-up": "slide-up 0.3s ease-out",
+        "scale-in": "scale-in 0.2s ease-out",
+        "pulse-soft": "pulse-soft 2s infinite",
       },
     },
   },

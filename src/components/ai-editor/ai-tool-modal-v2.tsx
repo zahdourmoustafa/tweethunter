@@ -53,9 +53,10 @@ export const AIToolModalV2 = ({
   existingMessages = [],
   existingGeneration
 }: AIToolModalProps) => {
-  const [messages, setMessages] = useState<ChatMessage[]>(existingMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
-  const [currentGeneration, setCurrentGeneration] = useState(existingGeneration || "");
+  const [currentGeneration, setCurrentGeneration] = useState("");
+  const [isInitialized, setIsInitialized] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const { 
@@ -67,34 +68,40 @@ export const AIToolModalV2 = ({
     clearError 
   } = useAIGeneration();
 
-  // Reset state when modal opens/closes
+  // Initialize modal state when opened
   useEffect(() => {
-    if (isOpen) {
-      // Only reset if we don't have existing messages
-      if (!existingMessages || existingMessages.length === 0) {
-        setMessages([]);
-        setCurrentGeneration("");
-        clearConversation();
-        clearError();
-        // Auto-generate initial content
-        if (initialContent.trim()) {
-          handleInitialGenerate();
-        }
-      } else {
+    if (isOpen && !isInitialized) {
+      if (existingMessages && existingMessages.length > 0) {
         // Load existing conversation
         setMessages(existingMessages);
         setCurrentGeneration(existingGeneration || "");
+      } else {
+        // New conversation - will auto-generate
+        setMessages([]);
+        setCurrentGeneration("");
+        if (initialContent.trim()) {
+          // Delay to prevent infinite loop
+          setTimeout(() => {
+            handleInitialGenerate();
+          }, 100);
+        }
       }
       setInputMessage("");
+      setIsInitialized(true);
+    } else if (!isOpen) {
+      // Reset when modal closes
+      setIsInitialized(false);
     }
-  }, [isOpen]);
+  }, [isOpen, isInitialized]);
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     const scrollToBottom = () => {
       if (scrollAreaRef.current) {
         setTimeout(() => {
-          scrollAreaRef.current!.scrollTop = scrollAreaRef.current!.scrollHeight;
+          if (scrollAreaRef.current) { // Double check to prevent null access
+            scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+          }
         }, 100);
       }
     };

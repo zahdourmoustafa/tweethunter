@@ -174,6 +174,15 @@ export const AIToolModalV2 = ({
   };
 
   /**
+   * Auto-sync generated content to right panel in real-time
+   */
+  useEffect(() => {
+    if (currentGeneration && onApply) {
+      onApply(currentGeneration);
+    }
+  }, [currentGeneration, onApply]);
+
+  /**
    * Initial AI generation when modal opens
    */
   const handleInitialGenerate = async () => {
@@ -195,6 +204,7 @@ export const AIToolModalV2 = ({
       
       // Auto-apply to right panel
       onApply(cleanedContent);
+      toast.success("✨ Content generated and applied to your tweet!");
     } catch (error) {
       console.error('Generation failed:', error);
       toast.error("Failed to generate content. Please try again.");
@@ -232,7 +242,7 @@ export const AIToolModalV2 = ({
       
       // Auto-apply to right panel
       onApply(cleanedContent);
-      toast.success(`Applied: ${actionLabel}`);
+      toast.success(`✅ ${actionLabel} applied to your tweet!`);
     } catch (error) {
       console.error('Quick action failed:', error);
       toast.error("Failed to apply changes. Please try again.");
@@ -278,6 +288,7 @@ export const AIToolModalV2 = ({
       
       // Auto-apply to right panel
       onApply(cleanedContent);
+      toast.success("🔄 Content updated and applied to your tweet!");
     } catch (error) {
       console.error('Chat failed:', error);
       toast.error("Failed to process message. Please try again.");
@@ -304,7 +315,7 @@ export const AIToolModalV2 = ({
       
       // Auto-apply to right panel
       onApply(cleanedContent);
-      toast.success("Content regenerated!");
+      toast.success("🔄 Content regenerated and applied to your tweet!");
     } catch (error) {
       console.error('Regeneration failed:', error);
       toast.error("Failed to regenerate content. Please try again.");

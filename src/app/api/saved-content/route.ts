@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
       originalContent, 
       toolUsed, 
       chatHistory,
-      tags = []
+      tags = [],
+      tweetMetadata
     } = body;
 
     if (!userId || !content || !toolUsed) {
@@ -81,7 +82,8 @@ export async function POST(request: NextRequest) {
         originalContent,
         toolUsed,
         chatHistory: serializedChatHistory,
-        tags
+        tags,
+        tweetMetadata: tweetMetadata || null
       })
       .returning();
 

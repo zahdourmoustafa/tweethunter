@@ -294,6 +294,24 @@ export const savedContent = pgTable("saved_content", {
     timestamp: string; // Store as ISO string for JSON compatibility
   }>>().default([]), // Store the entire chat conversation
   tags: jsonb("tags").$type<string[]>().default([]), // User-defined tags
+  // Tweet metadata for saved tweets from Twitter
+  tweetMetadata: jsonb("tweet_metadata").$type<{
+    id?: string;
+    author?: {
+      id: string;
+      name: string;
+      username: string;
+      verified: boolean;
+    };
+    public_metrics?: {
+      like_count: number;
+      retweet_count: number;
+      reply_count: number;
+      impression_count: number;
+    };
+    created_at?: string;
+    url?: string;
+  }>(), // Store original tweet data if saved from Twitter
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

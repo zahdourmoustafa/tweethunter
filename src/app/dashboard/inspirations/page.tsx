@@ -355,6 +355,49 @@ const InspirationsPage = () => {
     })
   }
 
+  /**
+   * Save tweet to saved content
+   */
+  const handleSaveTweet = async (tweet: Tweet) => {
+    try {
+      const userId = "user-placeholder"; // TODO: Replace with actual user ID from auth
+      
+      const response = await fetch('/api/saved-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          content: tweet.text,
+          originalContent: tweet.text,
+          toolUsed: 'Saved Tweet',
+          chatHistory: [],
+          tags: ['inspiration', 'twitter'],
+          // Add tweet metadata
+          tweetMetadata: {
+            id: tweet.id,
+            author: tweet.author,
+            public_metrics: tweet.public_metrics,
+            created_at: tweet.created_at,
+            url: `https://twitter.com/${tweet.author.username}/status/${tweet.id}`
+          }
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        toast.success("💾 Tweet saved successfully!");
+      } else {
+        throw new Error(result.error || 'Failed to save tweet');
+      }
+    } catch (error) {
+      console.error('Save failed:', error);
+      toast.error("Failed to save tweet. Please try again.");
+    }
+  };
+
   const handleEditTweet = (tweet: Tweet) => {
     // Encode tweet data for URL params
     const tweetData = encodeURIComponent(JSON.stringify({
@@ -429,7 +472,7 @@ const InspirationsPage = () => {
 
       </div>
     </div>
-  )
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -680,16 +723,25 @@ const InspirationsPage = () => {
                       </div>
                     </div>
                     
-                    {/* Edit Tweet Button */}
-                    <div className="pt-3">
+                    {/* Action Buttons */}
+                    <div className="pt-3 flex gap-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleEditTweet(tweet)}
-                        className="w-full bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-colors"
+                        className="flex-1 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-colors"
                       >
                         <Edit className="w-4 h-4 mr-2" />
                         Edit Tweet
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSaveTweet(tweet)}
+                        className="flex-1 bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:border-green-300 transition-colors"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Tweet
                       </Button>
                     </div>
                   </CardContent>

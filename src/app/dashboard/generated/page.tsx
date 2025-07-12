@@ -32,6 +32,23 @@ interface SavedContent {
     timestamp: string;
   }>;
   tags: string[];
+  tweetMetadata?: {
+    id?: string;
+    author?: {
+      id: string;
+      name: string;
+      username: string;
+      verified: boolean;
+    };
+    public_metrics?: {
+      like_count: number;
+      retweet_count: number;
+      reply_count: number;
+      impression_count: number;
+    };
+    created_at?: string;
+    url?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -236,6 +253,45 @@ export default function GeneratedContentPage() {
                   <p className="text-gray-700 text-sm line-clamp-4 leading-relaxed">
                     {item.content}
                   </p>
+                  
+                  {/* Tweet Metadata Display */}
+                  {item.tweetMetadata && (
+                    <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">T</span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              {item.tweetMetadata.author?.name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              @{item.tweetMetadata.author?.username}
+                            </p>
+                          </div>
+                        </div>
+                        {item.tweetMetadata.url && (
+                          <a
+                            href={item.tweetMetadata.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:text-blue-700 text-xs"
+                          >
+                            View Original
+                          </a>
+                        )}
+                      </div>
+                      
+                      {item.tweetMetadata.public_metrics && (
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <span>❤️ {item.tweetMetadata.public_metrics.like_count}</span>
+                          <span>🔄 {item.tweetMetadata.public_metrics.retweet_count}</span>
+                          <span>💬 {item.tweetMetadata.public_metrics.reply_count}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Tool Badge */}

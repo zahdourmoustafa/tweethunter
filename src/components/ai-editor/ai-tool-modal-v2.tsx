@@ -92,7 +92,7 @@ export const AIToolModalV2 = ({
       // Reset when modal closes
       setIsInitialized(false);
     }
-  }, [isOpen, isInitialized]);
+  }, [isOpen]); // Remove isInitialized from dependencies to prevent loop
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
@@ -112,7 +112,7 @@ export const AIToolModalV2 = ({
   /**
    * Clean AI response by removing conversational prefixes and introductions
    */
-  const cleanAIResponse = (content: string): string => {
+  const cleanAIResponse = useCallback((content: string): string => {
     // Remove common conversational prefixes and introductions
     const prefixPatterns = [
       // Basic responses
@@ -194,21 +194,24 @@ export const AIToolModalV2 = ({
     cleanedContent = cleanedContent.replace(/^\s+/, '').trim();
     
     return cleanedContent;
-  };
+  }, []);
 
   /**
    * Auto-sync generated content to right panel in real-time
    */
+  const applyContentRef = useRef(onApply);
+  applyContentRef.current = onApply;
+
   useEffect(() => {
-    if (currentGeneration && onApply) {
-      onApply(currentGeneration);
+    if (currentGeneration && applyContentRef.current) {
+      applyContentRef.current(currentGeneration);
     }
-  }, [currentGeneration, onApply]);
+  }, [currentGeneration]); // Remove onApply from dependencies to prevent loop
 
   /**
    * Initial AI generation when modal opens
    */
-  const handleInitialGenerate = async () => {
+  const handleInitialGenerate = useCallback(async () => {
     if (!initialContent.trim()) return;
     
     try {
@@ -226,13 +229,13 @@ export const AIToolModalV2 = ({
       setMessages([aiMessage]);
       
       // Auto-apply to right panel
-      onApply(cleanedContent);
+      applyContentRef.current(cleanedContent);
       toast.success("✨ Content generated and applied to your tweet!");
     } catch (error) {
       console.error('Generation failed:', error);
       toast.error("Failed to generate content. Please try again.");
     }
-  };
+  }, [initialContent, toolId, generateContent, cleanAIResponse]);
 
   /**
    * Handle quick action buttons
@@ -264,7 +267,7 @@ export const AIToolModalV2 = ({
       setMessages(prev => [...prev, aiMessage]);
       
       // Auto-apply to right panel
-      onApply(cleanedContent);
+      applyContentRef.current(cleanedContent);
       toast.success(`✅ ${actionLabel} applied to your tweet!`);
     } catch (error) {
       console.error('Quick action failed:', error);
@@ -310,13 +313,13 @@ export const AIToolModalV2 = ({
       setMessages(prev => [...prev, aiMessage]);
       
       // Auto-apply to right panel
-      onApply(cleanedContent);
+      applyContentRef.current(cleanedContent);
       toast.success("🔄 Content updated and applied to your tweet!");
     } catch (error) {
       console.error('Chat failed:', error);
       toast.error("Failed to process message. Please try again.");
     }
-  }, [inputMessage, currentGeneration, handleInitialGenerate, chatRefine, onApply]);
+  }, [inputMessage, currentGeneration, handleInitialGenerate, chatRefine, cleanAIResponse]);
 
   /**
    * Regenerate content
@@ -337,7 +340,7 @@ export const AIToolModalV2 = ({
       setMessages(prev => [...prev, aiMessage]);
       
       // Auto-apply to right panel
-      onApply(cleanedContent);
+      applyContentRef.current(cleanedContent);
       toast.success("🔄 Content regenerated and applied to your tweet!");
     } catch (error) {
       console.error('Regeneration failed:', error);
@@ -358,27 +361,35 @@ export const AIToolModalV2 = ({
       // For now, we'll use a placeholder user ID - in real app, get from auth
       const userId = "user-placeholder"; // TODO: Replace with actual user ID from auth
       
+      const requestData = {
+        userId,
+        content: currentGeneration,
+        originalContent: initialContent,
+        toolUsed: toolName,
+        chatHistory: messages,
+        tags: []
+      };
+
+      console.log('Sending request data:', requestData);
+      
       const response = await fetch('/api/saved-content', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          userId,
-          content: currentGeneration,
-          originalContent: initialContent,
-          toolUsed: toolName,
-          chatHistory: messages,
-          tags: []
-        }),
+        body: JSON.stringify(requestData),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
       const result = await response.json();
+      console.log('Response data:', result);
 
-      if (result.status === 'success') {
+      if (response.ok && result.status === 'success') {
         toast.success("💾 Content saved successfully!");
       } else {
-        throw new Error(result.error || 'Failed to save content');
+        throw new Error(result.error || `HTTP ${response.status}: Failed to save content`);
       }
     } catch (error) {
       console.error('Save failed:', error);

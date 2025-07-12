@@ -214,7 +214,6 @@ const EditorPanel = () => {
     return toolMap[toolId] || AITool.ImproveTweet;
   };
 
-
   return (
     <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
       {/* Header */}

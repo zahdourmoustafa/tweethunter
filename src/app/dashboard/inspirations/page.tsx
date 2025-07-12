@@ -43,11 +43,11 @@ import {
   Lightbulb
 } from "lucide-react";
 import { EditorProvider, useEditorContext } from "@/components/ai-editor/editor-context";
-import { AIToolModal } from "@/components/ai-editor/ai-tool-modal";
+import { AIToolModalV2 } from "@/components/ai-editor/ai-tool-modal-v2";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAIGeneration } from "@/hooks/use-ai-generation";
+import { AITool } from "@/lib/types/aiTools";
 import { toast } from "sonner";
 
 
@@ -102,7 +102,7 @@ interface ApiResponse {
   error?: string;
 }
 
-interface AITool {
+interface AIToolConfig {
   id: string;
   name: string;
   icon: React.ReactNode;
@@ -111,7 +111,7 @@ interface AITool {
 }
 
 // AI Tools Configuration
-const AI_TOOLS: AITool[] = [
+const AI_TOOLS: AIToolConfig[] = [
   // Left Column
   { id: 'copywriting-tips', name: 'Copywriting Tips', icon: <Zap className="h-4 w-4" />, description: 'Analyze and suggest improvements', category: 'enhance' },
   { id: 'keep-writing', name: 'Keep Writing', icon: <PenTool className="h-4 w-4" />, description: 'Continue/expand current content', category: 'generate' },
@@ -135,7 +135,7 @@ const EditorPanel = () => {
   const { 
     state, 
     setCurrentContent, 
-    setIsThread, 
+     
     setSelectedTool, 
     setIsModalOpen,
     addGeneration,
@@ -145,8 +145,8 @@ const EditorPanel = () => {
   const {
     originalTweet,
     currentContent,
-    isThread,
-    charCount,
+    
+    
     selectedTool,
     isModalOpen
   } = state;
@@ -185,29 +185,6 @@ const EditorPanel = () => {
     toast.success('AI generation applied to your tweet!');
   };
 
-  const handleGenerate = async (input: string, options?: any): Promise<string> => {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 2000)); 
-      
-      const selectedToolData = AI_TOOLS.find(tool => tool.id === selectedTool);
-      const output = `[AI Generated] ${selectedToolData?.name} version: ${input}`;
-      
-      if (selectedTool) {
-        addGeneration({
-          toolId: selectedTool,
-          input,
-          output,
-          options
-        });
-      }
-      
-      return output;
-    } catch (error) {
-      console.error('Generation failed:', error);
-      toast.error('AI generation failed. Please try again.');
-      throw error;
-    }
-  };
 
   const formatCount = (count: number): string => {
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
@@ -216,6 +193,27 @@ const EditorPanel = () => {
   };
 
   const selectedToolData = selectedTool ? AI_TOOLS.find(tool => tool.id === selectedTool) : null;
+
+  // Convert local tool ID to AITool enum
+  const getAIToolEnum = (toolId: string): AITool => {
+    const toolMap: Record<string, AITool> = {
+      'copywriting-tips': AITool.CopywritingTips,
+      'keep-writing': AITool.KeepWriting,
+      'add-emojis': AITool.AddEmojis,
+      'make-shorter': AITool.MakeShorter,
+      'expand-tweet': AITool.ExpandTweet,
+      'create-hook': AITool.CreateHook,
+      'create-cta': AITool.CreateCTA,
+      'improve-tweet': AITool.ImproveTweet,
+      'more-assertive': AITool.MoreAssertive,
+      'more-casual': AITool.MoreCasual,
+      'more-formal': AITool.MoreFormal,
+      'fix-grammar': AITool.FixGrammar,
+      'tweet-ideas': AITool.TweetIdeas,
+    };
+    return toolMap[toolId] || AITool.ImproveTweet;
+  };
+
 
   return (
     <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
@@ -230,74 +228,12 @@ const EditorPanel = () => {
         </p>
       </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Original Tweet Reference */}
-        {originalTweet && (
-          <div className="border-b bg-gray-50 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="h-4 w-4 text-blue-600" />
-              <span className="text-sm font-medium text-gray-700">Original Tweet</span>
-              <Badge variant="secondary" className="text-xs">
-                {formatCount(originalTweet.public_metrics.like_count)} likes
-              </Badge>
-            </div>
-            
-            <div className="flex items-start gap-3">
-              <Image
-                src={originalTweet.author.profile_image_url}
-                alt={originalTweet.author.name}
-                width={32}
-                height={32}
-                className="w-8 h-8 rounded-full"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(originalTweet.author.name)}&background=random`;
-                }}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-gray-900 text-sm truncate">
-                    {originalTweet.author.name}
-                  </h3>
-                  {originalTweet.author.verified && (
-                    <div className="w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
-                      <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                  )}
-                  <span className="text-gray-500 text-xs">@{originalTweet.author.username}</span>
-                </div>
-                <p className="text-gray-700 text-sm mt-1 leading-relaxed whitespace-pre-wrap">
-                  {originalTweet.text}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Tweet Composer */}
         <div className="flex flex-col p-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4">
             <h3 className="font-semibold text-gray-900">Your Tweet</h3>
-            <div className={`text-sm px-2 py-1 rounded-full ${
-              charCount > 280 ? 'bg-red-100 text-red-700' : 
-              charCount > 250 ? 'bg-yellow-100 text-yellow-700' : 
-              'bg-gray-100 text-gray-600'
-            }`}>
-              {charCount}/280
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 mb-4">
-            <Switch
-              id="thread-mode"
-              checked={isThread}
-              onCheckedChange={setIsThread}
-            />
-            <Label htmlFor="thread-mode" className="text-sm font-medium">
-              Thread Mode
-            </Label>
           </div>
 
           <Textarea
@@ -341,43 +277,19 @@ const EditorPanel = () => {
           </div>
         </div>
 
-        {/* Original Metrics */}
-        {originalTweet && (
-          <div className="border-t p-4">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">Original Metrics</h4>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="text-center p-2 bg-gray-50 rounded">
-                <div className="font-semibold text-gray-900">{formatCount(originalTweet.public_metrics.like_count)}</div>
-                <div className="text-gray-500">Likes</div>
-              </div>
-              <div className="text-center p-2 bg-gray-50 rounded">
-                <div className="font-semibold text-gray-900">{formatCount(originalTweet.public_metrics.retweet_count)}</div>
-                <div className="text-gray-500">Retweets</div>
-              </div>
-              <div className="text-center p-2 bg-gray-50 rounded">
-                <div className="font-semibold text-gray-900">{formatCount(originalTweet.public_metrics.reply_count)}</div>
-                <div className="text-gray-500">Replies</div>
-              </div>
-              <div className="text-center p-2 bg-gray-50 rounded">
-                <div className="font-semibold text-gray-900">{formatCount(originalTweet.public_metrics.impression_count)}</div>
-                <div className="text-gray-500">Views</div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* AI Tool Modal */}
       {selectedToolData && (
-        <AIToolModal
+        <AIToolModalV2
           isOpen={isModalOpen}
           onClose={handleCloseModal}
           toolName={selectedToolData.name}
           toolIcon={selectedToolData.icon}
           toolDescription={selectedToolData.description}
+          toolId={getAIToolEnum(selectedToolData.id)}
           initialContent={currentContent}
           onApply={handleApplyGeneration}
-          onGenerate={handleGenerate}
         />
       )}
     </div>
@@ -390,7 +302,7 @@ const InspirationsPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set())
-  const { setOriginalTweet } = useEditorContext()
+  const { setOriginalTweet, setCurrentContent } = useEditorContext()
 
   const fetchTweets = async () => {
     try {
@@ -456,6 +368,7 @@ const InspirationsPage = () => {
     }))
     
     setOriginalTweet(tweet) // Set original tweet for the editor
+    setCurrentContent(tweet.text) // Populate editor with tweet content
     // router.push(`/dashboard/inspirations/editor?tweet=${tweetData}`) // This line is removed as per the new_code
   }
 

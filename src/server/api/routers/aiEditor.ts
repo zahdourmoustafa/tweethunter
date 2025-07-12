@@ -1,9 +1,7 @@
 import { router, protectedProcedure } from '@/server/trpc/trpc';
 import { z } from 'zod';
-import { streamText } from 'ai';
-import { openai } from '@/lib/ai/config';
 import { AITool } from '@/lib/types/aiTools';
-import { getToolPrompt } from '@/lib/ai/prompts';
+import { storytellerAgent } from '@/lib/ai/storyteller-agent';
 
 export const aiEditorRouter = router({
   generate: protectedProcedure
@@ -15,12 +13,21 @@ export const aiEditorRouter = router({
       }),
     )
     .mutation(async ({ input }: { input: { tool: AITool; originalTweet: string; customPrompt?: string } }) => {
-      const systemPrompt = getToolPrompt(input.tool, input.originalTweet);
-      const result = await streamText({
-        model: openai('gpt-4o'),
-        system: systemPrompt,
-        prompt: input.customPrompt || input.originalTweet,
-      });
-      return result.toTextStreamResponse();
+      try {
+        const result = await storytellerAgent.generateContent(
+          input.tool,
+          input.originalTweet,
+          { customPrompt: input.customPrompt }
+        );
+        
+        return {
+          success: true,
+          content: result.content,
+          suggestions: result.suggestions
+        };
+      } catch (error) {
+        console.error('AI Generation failed:', error);
+        throw new Error('Failed to generate content');
+      }
     }),
 });

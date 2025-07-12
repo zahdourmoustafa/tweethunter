@@ -16,7 +16,15 @@ export interface TweetMetrics {
   impression_count?: number
 }
 
-
+export interface TwitterMedia {
+  type: 'photo' | 'video' | 'animated_gif'
+  url: string
+  media_url_https: string
+  display_url: string
+  expanded_url: string
+  width?: number
+  height?: number
+}
 
 export interface Tweet {
   id: string
@@ -24,6 +32,8 @@ export interface Tweet {
   author: TwitterUser
   public_metrics: TweetMetrics
   created_at: string
+  // Media attachments
+  media?: TwitterMedia[]
   // Thread/conversation context
   conversation_id?: string
   in_reply_to_user_id?: string

@@ -288,7 +288,6 @@ class TwitterApiService {
     
     // Handle different response formats
     let tweets = response.tweets || response.data || []
-    // Media lookup removed per user request
     
     if (!Array.isArray(tweets)) {
       console.log('❌ No tweets array found in response')
@@ -320,7 +319,21 @@ class TwitterApiService {
         })
       }
       
-      // Media processing removed per user request
+      // Process media from extendedEntities
+      let media: any[] = []
+      if (tweet.extendedEntities?.media) {
+        media = tweet.extendedEntities.media.map((mediaItem: any) => ({
+          type: mediaItem.type || 'photo',
+          url: mediaItem.url || '',
+          media_url_https: mediaItem.media_url_https || '',
+          display_url: mediaItem.display_url || '',
+          expanded_url: mediaItem.expanded_url || '',
+          width: mediaItem.original_info?.width || mediaItem.sizes?.large?.w,
+          height: mediaItem.original_info?.height || mediaItem.sizes?.large?.h,
+        }))
+        
+        console.log(`📷 Found ${media.length} media items in tweet ${tweet.id}`)
+      }
 
       const finalTweet = {
         id: tweet.id || 'unknown',
@@ -338,6 +351,8 @@ class TwitterApiService {
           impression_count: impressionCount,
         },
         created_at: tweet.createdAt || tweet.created_at || new Date().toISOString(),
+        // Add media if present
+        ...(media.length > 0 && { media }),
         // Thread/conversation context
         ...(tweet.conversation_id && { conversation_id: tweet.conversation_id }),
         ...(tweet.in_reply_to_user_id && { in_reply_to_user_id: tweet.in_reply_to_user_id }),
@@ -414,6 +429,22 @@ class TwitterApiService {
     const retweetCount = tweet.retweetCount || tweet.retweet_count || tweet.public_metrics?.retweet_count || 0  
     const replyCount = tweet.replyCount || tweet.reply_count || tweet.public_metrics?.reply_count || 0
 
+    // Process media from extendedEntities
+    let media: any[] = []
+    if (tweet.extendedEntities?.media) {
+      media = tweet.extendedEntities.media.map((mediaItem: any) => ({
+        type: mediaItem.type || 'photo',
+        url: mediaItem.url || '',
+        media_url_https: mediaItem.media_url_https || '',
+        display_url: mediaItem.display_url || '',
+        expanded_url: mediaItem.expanded_url || '',
+        width: mediaItem.original_info?.width || mediaItem.sizes?.large?.w,
+        height: mediaItem.original_info?.height || mediaItem.sizes?.large?.h,
+      }))
+      
+      console.log(`📷 Found ${media.length} media items in advanced search tweet ${tweet.id}`)
+    }
+
     const transformedTweet = {
       id: tweet.id || 'unknown',
       text: tweet.text || '',
@@ -425,6 +456,8 @@ class TwitterApiService {
         impression_count: impressionCount,
       },
       created_at: tweet.createdAt || tweet.created_at || new Date().toISOString(),
+      // Add media if present
+      ...(media.length > 0 && { media }),
       // Thread/conversation context
       ...(tweet.conversation_id && { conversation_id: tweet.conversation_id }),
       ...(tweet.in_reply_to_user_id && { in_reply_to_user_id: tweet.in_reply_to_user_id }),

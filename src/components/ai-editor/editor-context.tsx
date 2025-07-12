@@ -18,6 +18,16 @@ interface Tweet {
     impression_count: number;
   };
   created_at: string;
+  // Media attachments
+  media?: Array<{
+    type: 'photo' | 'video' | 'animated_gif';
+    url: string;
+    media_url_https: string;
+    display_url: string;
+    expanded_url: string;
+    width?: number;
+    height?: number;
+  }>;
   thread_context?: {
     is_thread: boolean;
     thread_position?: number;

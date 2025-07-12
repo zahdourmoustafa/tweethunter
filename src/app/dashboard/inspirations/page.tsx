@@ -68,6 +68,16 @@ interface Tweet {
     impression_count: number;
   };
   created_at: string;
+  // Media attachments
+  media?: Array<{
+    type: 'photo' | 'video' | 'animated_gif';
+    url: string;
+    media_url_https: string;
+    display_url: string;
+    expanded_url: string;
+    width?: number;
+    height?: number;
+  }>;
   // Thread/conversation context
   conversation_id?: string;
   in_reply_to_user_id?: string;
@@ -469,6 +479,48 @@ const InspirationsPage = () => {
           {tweet.text}
         </p>
         
+        {/* Display tweet images */}
+        {tweet.media && tweet.media.length > 0 && (
+          <div className={`${tweet.media.length === 1 ? '' : 'grid grid-cols-2 gap-2'} rounded-lg overflow-hidden`}>
+            {tweet.media.slice(0, 4).map((mediaItem, index) => (
+              <div key={index} className="relative">
+                {mediaItem.type === 'photo' && (
+                  <Image
+                    src={mediaItem.media_url_https}
+                    alt="Tweet image"
+                    width={mediaItem.width || 500}
+                    height={mediaItem.height || 300}
+                    className="w-full h-auto object-cover rounded-lg border border-gray-200 hover:border-gray-300 transition-colors cursor-pointer"
+                    onClick={() => window.open(mediaItem.expanded_url, '_blank')}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      // Fallback to display_url link if image fails to load
+                      console.log('Image failed to load:', mediaItem.media_url_https);
+                    }}
+                  />
+                )}
+                {mediaItem.type === 'video' && (
+                  <div className="bg-gray-100 rounded-lg p-4 text-center">
+                    <div className="text-gray-600 mb-2">📹 Video content</div>
+                    <a 
+                      href={mediaItem.expanded_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 text-sm underline"
+                    >
+                      View on Twitter
+                    </a>
+                  </div>
+                )}
+                                 {tweet.media && tweet.media.length > 4 && index === 3 && (
+                   <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center">
+                     <span className="text-white font-semibold">+{tweet.media.length - 4} more</span>
+                   </div>
+                 )}
+              </div>
+            ))}
+          </div>
+        )}
 
       </div>
     </div>

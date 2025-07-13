@@ -45,6 +45,20 @@ interface GenerationHistory {
   options?: any;
 }
 
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+interface ToolConversation {
+  toolId: string;
+  messages: ChatMessage[];
+  currentGeneration: string;
+  lastUpdated: Date;
+}
+
 interface EditorState {
   originalTweet: Tweet | null;
   currentContent: string;
@@ -54,6 +68,8 @@ interface EditorState {
   isModalOpen: boolean;
   generationHistory: GenerationHistory[];
   savedVersions: string[];
+  toolConversations: Record<string, ToolConversation>;
+  lastSavedContent: Record<string, { content: string; timestamp: Date }>;
 }
 
 interface EditorContextValue {
@@ -66,6 +82,10 @@ interface EditorContextValue {
   addGeneration: (generation: Omit<GenerationHistory, 'id' | 'timestamp'>) => void;
   saveVersion: (content: string) => void;
   applyContent: (content: string) => void;
+  saveToolConversation: (toolId: string, messages: ChatMessage[], currentGeneration: string) => void;
+  getToolConversation: (toolId: string) => ToolConversation | null;
+  markContentAsSaved: (toolId: string, content: string) => void;
+  getLastSavedContent: (toolId: string) => { content: string; timestamp: Date } | null;
 }
 
 const EditorContext = createContext<EditorContextValue | null>(null);
@@ -92,7 +112,9 @@ export const EditorProvider = ({ children, initialTweet }: EditorProviderProps) 
     selectedTool: null,
     isModalOpen: false,
     generationHistory: [],
-    savedVersions: []
+    savedVersions: [],
+    toolConversations: {},
+    lastSavedContent: {}
   });
 
   const setOriginalTweet = (tweet: Tweet) => {
@@ -149,6 +171,42 @@ export const EditorProvider = ({ children, initialTweet }: EditorProviderProps) 
     saveVersion(content);
   };
 
+  const saveToolConversation = (toolId: string, messages: ChatMessage[], currentGeneration: string) => {
+    console.log('Saving conversation for tool:', toolId, 'with', messages.length, 'messages');
+    setState(prev => ({
+      ...prev,
+      toolConversations: {
+        ...prev.toolConversations,
+        [toolId]: {
+          toolId,
+          messages,
+          currentGeneration,
+          lastUpdated: new Date()
+        }
+      }
+    }));
+  };
+
+  const getToolConversation = (toolId: string) => {
+    const conversation = state.toolConversations[toolId] || null;
+    console.log('Getting conversation for tool:', toolId, conversation ? 'found' : 'not found');
+    return conversation;
+  };
+
+  const markContentAsSaved = (toolId: string, content: string) => {
+    setState(prev => ({
+      ...prev,
+      lastSavedContent: {
+        ...prev.lastSavedContent,
+        [toolId]: { content, timestamp: new Date() }
+      }
+    }));
+  };
+
+  const getLastSavedContent = (toolId: string) => {
+    return state.lastSavedContent[toolId] || null;
+  };
+
   const value: EditorContextValue = {
     state,
     setOriginalTweet,
@@ -158,7 +216,11 @@ export const EditorProvider = ({ children, initialTweet }: EditorProviderProps) 
     setIsModalOpen,
     addGeneration,
     saveVersion,
-    applyContent
+    applyContent,
+    saveToolConversation,
+    getToolConversation,
+    markContentAsSaved,
+    getLastSavedContent
   };
 
   return (

@@ -30,6 +30,7 @@ interface AIToolModalProps {
   // New props for continuing existing conversations
   existingMessages?: ChatMessage[];
   existingGeneration?: string;
+  onSave?: (messages: ChatMessage[], currentGeneration: string) => void;
 }
 
 interface ChatMessage {
@@ -51,12 +52,14 @@ export const AIToolModalV2 = ({
   initialContent,
   onApply,
   existingMessages = [],
-  existingGeneration
+  existingGeneration,
+  onSave
 }: AIToolModalProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [currentGeneration, setCurrentGeneration] = useState("");
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const { 
@@ -73,10 +76,12 @@ export const AIToolModalV2 = ({
     if (isOpen && !isInitialized) {
       if (existingMessages && existingMessages.length > 0) {
         // Load existing conversation
+        console.log('Loading existing conversation:', existingMessages.length, 'messages');
         setMessages(existingMessages);
         setCurrentGeneration(existingGeneration || "");
       } else {
         // New conversation - will auto-generate
+        console.log('Starting new conversation');
         setMessages([]);
         setCurrentGeneration("");
         if (initialContent.trim()) {
@@ -108,6 +113,20 @@ export const AIToolModalV2 = ({
 
     scrollToBottom();
   }, [messages, isGenerating]);
+
+  // Auto-save conversation state when messages or generation changes
+  useEffect(() => {
+    if (onSave && messages.length > 0 && currentGeneration) {
+      // Debounce the save to avoid too many calls
+      const saveTimer = setTimeout(() => {
+        setIsAutoSaving(true);
+        onSave(messages, currentGeneration);
+        setTimeout(() => setIsAutoSaving(false), 500);
+      }, 1000);
+
+      return () => clearTimeout(saveTimer);
+    }
+  }, [messages, currentGeneration, onSave]);
 
   /**
    * Clean and format AI response (simplified since new AI agent returns clean content)
@@ -286,6 +305,13 @@ export const AIToolModalV2 = ({
     }
 
     try {
+      // If onSave prop is provided, use it to save conversation state
+      if (onSave) {
+        onSave(messages, currentGeneration);
+        return;
+      }
+
+      // Fallback to database save if no onSave prop provided
       // For now, we'll use a placeholder user ID - in real app, get from auth
       const userId = "user-placeholder"; // TODO: Replace with actual user ID from auth
       
@@ -341,7 +367,7 @@ export const AIToolModalV2 = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-full max-h-[90vh] sm:max-h-[85vh] flex flex-col p-0 gap-0 mx-4 sm:mx-auto animate-scale-in">
+      <DialogContent className="max-w-6xl w-full max-h-[90vh] sm:max-h-[85vh] flex flex-col p-0 gap-0 mx-4 sm:mx-auto animate-scale-in">
         {/* Header */}
         <DialogHeader className="p-3 sm:p-4 pb-2 sm:pb-3 border-b shrink-0 bg-gray-50 animate-fade-in">
           <div className="flex items-center justify-between">
@@ -353,7 +379,10 @@ export const AIToolModalV2 = ({
               </div>
               <div className="min-w-0 flex-1">
                 <DialogTitle className="text-sm sm:text-base font-medium truncate">{toolName}</DialogTitle>
-                <p className="text-xs text-gray-600 truncate">{toolDescription}</p>
+                <p className="text-xs text-gray-600 truncate">
+                  {toolDescription}
+                  {isAutoSaving && <span className="ml-2 text-green-600">• Auto-saving...</span>}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-1 shrink-0 ml-2">
@@ -363,7 +392,7 @@ export const AIToolModalV2 = ({
                 onClick={handleSaveContent}
                 disabled={!currentGeneration}
                 className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-gray-400 hover:text-green-600 hover:bg-green-50 transition-all duration-200 hover:scale-110"
-                title="Save content"
+                title={onSave ? "Save conversation & apply to tweet" : "Save content to library"}
               >
                 <Save className="h-3 w-3 sm:h-4 sm:w-4" />
               </Button>

@@ -13,7 +13,8 @@ import {
   Settings, 
   BarChart3,
   Sparkles,
-  Twitter
+  Twitter,
+  Calendar
 } from "lucide-react";
 import { APP_CONFIG } from "@/lib/constants";
 
@@ -37,6 +38,11 @@ const navigation = [
     name: "Saved Content",
     href: "/dashboard/saved",
     icon: Bookmark,
+  },
+  {
+    name: "Calendar",
+    href: "/dashboard/calendar",
+    icon: Calendar,
   },
   {
     name: "Analytics",

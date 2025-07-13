@@ -318,3 +318,37 @@ export const savedContent = pgTable("saved_content", {
 
 export type SavedContent = typeof savedContent.$inferSelect;
 export type NewSavedContent = typeof savedContent.$inferInsert;
+
+// Scheduled tweets table - stores tweets scheduled for posting
+export const scheduledTweets = pgTable("scheduled_tweets", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  originalContent: text("original_content"), // If generated from AI
+  toolUsed: text("tool_used"), // AI tool used if applicable
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  timezone: text("timezone").notNull().default("UTC"),
+  isThread: boolean("is_thread").default(false),
+  threadParts: jsonb("thread_parts").$type<string[]>(),
+  status: text("status").notNull().default("scheduled"), // scheduled, posted, failed, cancelled
+  postedAt: timestamp("posted_at"),
+  postedTweetId: text("posted_tweet_id"), // Twitter API tweet ID after posting
+  failureReason: text("failure_reason"), // Error message if posting failed
+  metadata: jsonb("metadata").$type<{
+    aiToolUsed?: string;
+    originalTweetId?: string;
+    generationPrompt?: string;
+    retryCount?: number;
+    tags?: string[];
+  }>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("scheduled_tweets_user_id_idx").on(table.userId),
+  scheduledAtIdx: index("scheduled_tweets_scheduled_at_idx").on(table.scheduledAt),
+  statusIdx: index("scheduled_tweets_status_idx").on(table.status),
+  createdAtIdx: index("scheduled_tweets_created_at_idx").on(table.createdAt),
+}));
+
+export type ScheduledTweet = typeof scheduledTweets.$inferSelect;
+export type NewScheduledTweet = typeof scheduledTweets.$inferInsert;

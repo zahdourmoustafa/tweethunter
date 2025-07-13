@@ -95,7 +95,7 @@ export const AIToolModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl h-[70vh] flex flex-col p-0">
+      <DialogContent className="max-w-6xl h-[70vh] flex flex-col p-0">
         {/* Header */}
         <DialogHeader className="p-4 border-b shrink-0">
           <div className="flex items-center justify-between">

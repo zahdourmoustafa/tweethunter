@@ -40,10 +40,12 @@ import {
   Coffee,
   Briefcase,
   Settings,
-  Lightbulb
+  Lightbulb,
+  Calendar
 } from "lucide-react";
 import { EditorProvider, useEditorContext } from "@/components/ai-editor/editor-context";
 import { AIToolModalV2 } from "@/components/ai-editor/ai-tool-modal-v2";
+import { ScheduleModal } from "@/components/schedule-modal";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAIGeneration } from "@/hooks/use-ai-generation";
@@ -145,21 +147,24 @@ const EditorPanel = () => {
   const { 
     state, 
     setCurrentContent, 
-     
     setSelectedTool, 
     setIsModalOpen,
     addGeneration,
-    applyContent 
+    applyContent,
+    saveToolConversation,
+    getToolConversation,
+    markContentAsSaved,
+    getLastSavedContent 
   } = useEditorContext();
 
   const {
     originalTweet,
     currentContent,
-    
-    
     selectedTool,
     isModalOpen
   } = state;
+
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
   const handleContentChange = (value: string) => {
     setCurrentContent(value);
@@ -180,6 +185,44 @@ const EditorPanel = () => {
     toast.success('Content saved to library!');
   };
 
+  const handleScheduleTweet = () => {
+    setIsScheduleModalOpen(true);
+  };
+
+  const handleScheduleConfirm = async (scheduledAt: Date) => {
+    try {
+      // TODO: Replace with actual user ID from auth
+      const userId = "user-placeholder";
+      
+      // TODO: Create API endpoint for scheduling tweets
+      const response = await fetch('/api/scheduled-tweets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          content: currentContent,
+          originalContent: originalTweet?.text || null,
+          toolUsed: selectedTool,
+          scheduledAt: scheduledAt.toISOString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        toast.success(`🗓️ Tweet scheduled for ${scheduledAt.toLocaleDateString()} at ${scheduledAt.toLocaleTimeString()}`);
+      } else {
+        throw new Error(result.error || 'Failed to schedule tweet');
+      }
+    } catch (error) {
+      console.error('Schedule failed:', error);
+      toast.error("Failed to schedule tweet. Please try again.");
+    }
+  };
+
   const handleToolSelect = (toolId: string) => {
     setSelectedTool(toolId);
     setIsModalOpen(true);
@@ -195,6 +238,15 @@ const EditorPanel = () => {
     toast.success('AI generation applied to your tweet!');
   };
 
+  const handleSaveToolConversation = (toolId: string, messages: any[], currentGeneration: string) => {
+    // Save conversation state for this tool
+    saveToolConversation(toolId, messages, currentGeneration);
+    // Mark content as saved for this tool
+    markContentAsSaved(toolId, currentGeneration);
+    // Apply the latest content to the editor
+    setCurrentContent(currentGeneration);
+    toast.success('💾 Conversation saved and applied to your tweet!');
+  };
 
   const formatCount = (count: number): string => {
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
@@ -203,6 +255,7 @@ const EditorPanel = () => {
   };
 
   const selectedToolData = selectedTool ? AI_TOOLS.find(tool => tool.id === selectedTool) : null;
+  const existingConversation = selectedTool ? getToolConversation(selectedTool) : null;
 
   // Convert local tool ID to AITool enum
   const getAIToolEnum = (toolId: string): AITool => {
@@ -237,55 +290,58 @@ const EditorPanel = () => {
         </p>
       </div>
 
-
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Tweet Composer */}
-        <div className="flex flex-col p-4">
-          <div className="mb-4">
-            <h3 className="font-semibold text-gray-900">Your Tweet</h3>
-          </div>
-
-          <Textarea
-            value={currentContent}
-            onChange={(e) => handleContentChange(e.target.value)}
-            placeholder={originalTweet ? "Edit your tweet..." : "Start typing your tweet..."}
-            className="resize-none text-sm leading-relaxed border-gray-200 focus:border-blue-500 focus:ring-blue-500 min-h-[120px] h-48"
-          />
-
-          <div className="flex gap-2 mt-4">
-            <Button variant="outline" size="sm" onClick={handleCopyContent} className="flex-1">
-              <Copy className="h-4 w-4 mr-2" />
-              Copy
-            </Button>
-            <Button size="sm" onClick={handleSaveContent} className="flex-1">
-              <Save className="h-4 w-4 mr-2" />
-              Save
-            </Button>
-          </div>
+      {/* Tweet Composer */}
+      <div className="flex flex-col p-4">
+        <div className="mb-4">
+          <h3 className="font-semibold text-gray-900">Your Tweet</h3>
         </div>
 
-        {/* AI Tools */}
-        <div className="border-t p-4">
-          <h3 className="font-semibold text-gray-800 mb-3">Improve your tweet with AI:</h3>
-          <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-            {AI_TOOLS.map((tool) => (
-              <Button
-                key={tool.id}
-                variant="ghost"
-                onClick={() => handleToolSelect(tool.id)}
-                className={`flex items-center gap-3 justify-start p-2 h-auto text-left rounded-md w-full ${
-                  selectedTool === tool.id
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                }`}
-              >
-                <div className="text-blue-700">{tool.icon}</div>
-                <span className="font-medium text-sm">{tool.name}</span>
-              </Button>
-            ))}
-          </div>
-        </div>
+        <Textarea
+          value={currentContent}
+          onChange={(e) => handleContentChange(e.target.value)}
+          placeholder={originalTweet ? "Edit your tweet..." : "Start typing your tweet..."}
+          className="resize-none text-sm leading-relaxed border-gray-200 focus:border-blue-500 focus:ring-blue-500 min-h-[120px] h-48"
+        />
 
+        <div className="flex gap-2 mt-4">
+          <Button variant="outline" size="sm" onClick={handleCopyContent} className="flex-1">
+            <Copy className="h-4 w-4 mr-2" />
+            Copy
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleScheduleTweet} className="flex-1">
+            <Calendar className="h-4 w-4 mr-2" />
+            Schedule
+          </Button>
+          <Button size="sm" onClick={handleSaveContent} className="flex-1">
+            <Save className="h-4 w-4 mr-2" />
+            Save
+          </Button>
+        </div>
+      </div>
+
+      {/* AI Tools */}
+      <div className="border-t p-4">
+        <h3 className="font-semibold text-gray-800 mb-3">Improve your tweet with AI:</h3>
+        <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+          {AI_TOOLS.map((tool) => (
+            <Button
+              key={tool.id}
+              variant="ghost"
+              onClick={() => handleToolSelect(tool.id)}
+              className={`flex items-center gap-3 justify-start p-2 h-auto text-left rounded-md w-full relative ${
+                selectedTool === tool.id
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              }`}
+            >
+              <div className="text-blue-700">{tool.icon}</div>
+              <span className="font-medium text-sm">{tool.name}</span>
+              {getToolConversation(tool.id) && (
+                <div className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full" title="Has conversation history" />
+              )}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* AI Tool Modal */}
@@ -299,8 +355,19 @@ const EditorPanel = () => {
           toolId={getAIToolEnum(selectedToolData.id)}
           initialContent={currentContent}
           onApply={handleApplyGeneration}
+          existingMessages={existingConversation?.messages || []}
+          existingGeneration={existingConversation?.currentGeneration || ""}
+          onSave={(messages, currentGeneration) => handleSaveToolConversation(selectedTool!, messages, currentGeneration)}
         />
       )}
+
+      {/* Schedule Modal */}
+      <ScheduleModal
+        isOpen={isScheduleModalOpen}
+        onClose={() => setIsScheduleModalOpen(false)}
+        content={currentContent}
+        onSchedule={handleScheduleConfirm}
+      />
     </div>
   );
 };

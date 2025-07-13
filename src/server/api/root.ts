@@ -1,5 +1,6 @@
 import { router } from '@/server/trpc/trpc';
 import { aiEditorRouter } from './routers/aiEditor';
+import { scheduledTweetsRouter } from './routers/scheduledTweets';
 
 /**
  * This is the primary router for your server.
@@ -8,6 +9,7 @@ import { aiEditorRouter } from './routers/aiEditor';
  */
 export const appRouter = router({
   aiEditor: aiEditorRouter,
+  scheduledTweets: scheduledTweetsRouter,
 });
 
 // export type definition of API

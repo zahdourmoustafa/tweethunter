@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { tweetGenerationService } from '@/lib/services/tweet-generation';
+import { grokTweetGenerationService } from '@/lib/services/grok-tweet-generation';
 import { z } from 'zod';
 
 // Schema for tweet generation request
@@ -42,7 +42,7 @@ export async function POST(
 
     // If regenerateType is specified, generate only that variation
     if (regenerateType) {
-      const result = await tweetGenerationService.regenerateVariation(
+      const result = await grokTweetGenerationService.regenerateVariation(
         session.user.id,
         params.id,
         idea,
@@ -65,7 +65,7 @@ export async function POST(
     }
 
     // Generate all 6 variations
-    const result = await tweetGenerationService.generateVariations(
+    const result = await grokTweetGenerationService.generateVariations(
       session.user.id,
       params.id,
       idea

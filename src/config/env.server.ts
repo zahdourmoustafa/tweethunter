@@ -10,7 +10,8 @@ function validateServerEnv() {
     'TWITTER_CLIENT_ID',
     'TWITTER_CLIENT_SECRET',
     'OPENAI_API_KEY',
-    'TWITTERAPI_IO_API_KEY'
+    'TWITTERAPI_IO_API_KEY',
+    'GROK_API_KEY'
   ];
 
   const missing = requiredVars.filter(key => !process.env[key]);
@@ -32,6 +33,7 @@ function validateServerEnv() {
     TWITTER_CLIENT_SECRET: process.env.TWITTER_CLIENT_SECRET!,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
     TWITTERAPI_IO_API_KEY: process.env.TWITTERAPI_IO_API_KEY!,
+    GROK_API_KEY: process.env.GROK_API_KEY!,
     NODE_ENV: (process.env.NODE_ENV as "development" | "production" | "test") || "development",
   };
 }

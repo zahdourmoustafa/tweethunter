@@ -23,7 +23,10 @@ export function useSession() {
             id: 'user-1',
             name: 'Your Name',
             email: 'user@example.com',
+            emailVerified: false,
             image: '/default-avatar.png',
+            createdAt: new Date(),
+            updatedAt: new Date(),
           },
           session: {
             id: 'session-1',

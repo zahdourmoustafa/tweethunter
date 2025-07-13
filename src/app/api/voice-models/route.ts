@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { voiceAnalysisService } from '@/lib/services/voice-analysis';
+import { grokVoiceAnalysisService } from '@/lib/services/grok-voice-analysis';
 import { z } from 'zod';
 
 // Schema for creating voice model
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const voiceModels = await voiceAnalysisService.getUserVoiceModels(session.user.id);
+    const voiceModels = await grokVoiceAnalysisService.getUserVoiceModels(session.user.id);
 
     return NextResponse.json({
       success: true,
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     const { twitterUsername } = validation.data;
 
     // Check if user already has this voice model
-    const existingModels = await voiceAnalysisService.getUserVoiceModels(session.user.id);
+    const existingModels = await grokVoiceAnalysisService.getUserVoiceModels(session.user.id);
     const cleanUsername = twitterUsername.replace('@', '').toLowerCase();
     
     const existingModel = existingModels.find(
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Analyze the account
-    const result = await voiceAnalysisService.analyzeAccount(session.user.id, twitterUsername);
+    const result = await grokVoiceAnalysisService.analyzeAccount(session.user.id, twitterUsername);
 
     if (!result.success) {
       return NextResponse.json(
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the created voice model
-    const voiceModel = await voiceAnalysisService.getVoiceModel(result.voiceModelId!);
+    const voiceModel = await grokVoiceAnalysisService.getVoiceModel(result.voiceModelId!);
 
     return NextResponse.json({
       success: true,

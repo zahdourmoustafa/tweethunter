@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Settings, Plus, X, Save, Loader2, Users, Twitter, Trash2, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { VoiceModelsSection } from "@/components/voice-models/voice-models-section";
 
 // Same predefined topics as onboarding
 const PREDEFINED_TOPICS = [
@@ -567,6 +568,19 @@ export default function SettingsPage() {
           )}
         </CardContent>
       </Card>
+      {/* Voice Models */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Voice Tweet Generator</CardTitle>
+          <CardDescription>
+            Create voice models from Twitter accounts to generate tweets in their unique style.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <VoiceModelsSection />
+        </CardContent>
+      </Card>
+
     </div>
   );
 }

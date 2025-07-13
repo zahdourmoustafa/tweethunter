@@ -352,3 +352,90 @@ export const scheduledTweets = pgTable("scheduled_tweets", {
 
 export type ScheduledTweet = typeof scheduledTweets.$inferSelect;
 export type NewScheduledTweet = typeof scheduledTweets.$inferInsert;
+
+// Voice models table - stores analyzed Twitter account voice patterns
+export const voiceModels = pgTable("voice_models", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  twitterUsername: varchar("twitter_username", { length: 50 }).notNull(),
+  displayName: varchar("display_name", { length: 100 }),
+  analysisData: jsonb("analysis_data").$type<{
+    tweetStructure?: {
+      averageLength: number;
+      usesThreads: boolean;
+      threadFrequency: number;
+    };
+    writingStyle?: {
+      tone: string[];
+      formalityLevel: number; // 1-10 scale
+      humorLevel: number; // 1-10 scale
+      vulnerabilityLevel: number; // 1-10 scale
+    };
+    contentPatterns?: {
+      openingHooks: string[];
+      commonPhrases: string[];
+      ctaStyles: string[];
+      storytellingPatterns: string[];
+    };
+    engagementTactics?: {
+      usesQuestions: boolean;
+      questionFrequency: number;
+      usesControversialTakes: boolean;
+      usesPersonalAnecdotes: boolean;
+    };
+    formatting?: {
+      usesEmojis: boolean;
+      emojiFrequency: number;
+      usesBulletPoints: boolean;
+      usesNumberedLists: boolean;
+      punctuationStyle: string[];
+    };
+    vocabulary?: {
+      commonWords: string[];
+      industryTerms: string[];
+      uniquePhrases: string[];
+      averageWordsPerSentence: number;
+    };
+  }>().notNull(),
+  confidenceScore: text("confidence_score").default("0"), // 0-100 confidence in analysis
+  tweetCount: text("tweet_count").default("0"), // Number of tweets analyzed
+  lastAnalyzedAt: timestamp("last_analyzed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("voice_models_user_id_idx").on(table.userId),
+  twitterUsernameIdx: index("voice_models_twitter_username_idx").on(table.twitterUsername),
+  userUsernameIdx: index("voice_models_user_username_idx").on(table.userId, table.twitterUsername),
+  lastAnalyzedIdx: index("voice_models_last_analyzed_idx").on(table.lastAnalyzedAt),
+}));
+
+// Generated tweets table - stores AI-generated tweet variations
+export const generatedTweets = pgTable("generated_tweets", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  voiceModelId: text("voice_model_id").notNull().references(() => voiceModels.id, { onDelete: "cascade" }),
+  originalIdea: text("original_idea").notNull(),
+  generatedContent: text("generated_content").notNull(),
+  variationType: varchar("variation_type", { length: 50 }).notNull(), // casual, question-hook, story-driven, professional, controversial, educational
+  characterCount: text("character_count").notNull(),
+  used: boolean("used").default(false), // Whether user selected this variation
+  metadata: jsonb("metadata").$type<{
+    generationTime?: number; // Time taken to generate in ms
+    promptUsed?: string;
+    aiModel?: string;
+    confidenceScore?: number;
+  }>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("generated_tweets_user_id_idx").on(table.userId),
+  voiceModelIdIdx: index("generated_tweets_voice_model_id_idx").on(table.voiceModelId),
+  variationTypeIdx: index("generated_tweets_variation_type_idx").on(table.variationType),
+  usedIdx: index("generated_tweets_used_idx").on(table.used),
+  createdAtIdx: index("generated_tweets_created_at_idx").on(table.createdAt),
+}));
+
+export type VoiceModel = typeof voiceModels.$inferSelect;
+export type NewVoiceModel = typeof voiceModels.$inferInsert;
+
+export type GeneratedTweet = typeof generatedTweets.$inferSelect;
+export type NewGeneratedTweet = typeof generatedTweets.$inferInsert;

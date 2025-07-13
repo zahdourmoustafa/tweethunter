@@ -14,7 +14,8 @@ import {
   BarChart3,
   Sparkles,
   Twitter,
-  Calendar
+  Calendar,
+  Wand2
 } from "lucide-react";
 import { APP_CONFIG } from "@/lib/constants";
 
@@ -28,6 +29,11 @@ const navigation = [
     name: "Inspirations",
     href: "/dashboard/inspirations",
     icon: Lightbulb,
+  },
+  {
+    name: "Voice Generator",
+    href: "/dashboard/voice-generator",
+    icon: Wand2,
   },
   {
     name: "Generated Content",

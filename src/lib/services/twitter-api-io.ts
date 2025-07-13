@@ -261,9 +261,9 @@ export class TwitterApiService {
       let pagesFetched = 0;
 
       while (allTweets.length < count && hasNextPage && pagesFetched < maxPages) {
-        const params: Record<string, string | number | boolean> = {
+        const params: Record<string, string | number> = {
           userName: cleanUsername,
-          includeReplies: false,
+          includeReplies: 'false',
         };
         if (cursor) {
           params.cursor = cursor;

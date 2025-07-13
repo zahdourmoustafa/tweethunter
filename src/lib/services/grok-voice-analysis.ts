@@ -118,7 +118,7 @@ export class GrokVoiceAnalysisService {
           .update(voiceModels)
           .set({
             displayName: validation.user?.name || cleanUsername,
-            analysisData: analysis,
+            analysisData: analysis as any,
             confidenceScore: confidenceScore.toString(),
             tweetCount: tweets.length.toString(),
             lastAnalyzedAt: new Date(),
@@ -131,7 +131,7 @@ export class GrokVoiceAnalysisService {
           userId,
           twitterUsername: cleanUsername,
           displayName: validation.user?.name || cleanUsername,
-          analysisData: analysis,
+          analysisData: analysis as any,
           confidenceScore: confidenceScore.toString(),
           tweetCount: tweets.length.toString(),
           lastAnalyzedAt: new Date(),

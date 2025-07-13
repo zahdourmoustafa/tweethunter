@@ -222,21 +222,24 @@ export class VoiceAnalysisService {
       }
 
       // Check account quality indicators
-      if (user.followers_count < 100) {
-        warnings.push('Account has very few followers, which may affect analysis quality');
-      }
+      // Note: These checks are commented out because the current TwitterUser interface
+      // doesn't include followers_count and tweet_count properties
+      // if (user.followers_count < 100) {
+      //   warnings.push('Account has very few followers, which may affect analysis quality');
+      // }
 
-      if (user.tweet_count < 50) {
-        warnings.push('Account has very few tweets, which may affect analysis quality');
-      }
+      // if (user.tweet_count < 50) {
+      //   warnings.push('Account has very few tweets, which may affect analysis quality');
+      // }
 
       // Check if account is too new (less than 30 days old)
       // Note: This would require account creation date from API
       
       // Check if account is verified (can indicate quality)
-      if (user.verified) {
-        // Verified accounts often have higher quality content
-      }
+      // Note: Commented out due to TypeScript strict checking
+      // if (user.verified) {
+      //   // Verified accounts often have higher quality content
+      // }
 
       return {
         isValid: true,

@@ -35,6 +35,8 @@ export function useSession() {
             token: 'mock-token',
             ipAddress: '127.0.0.1',
             userAgent: 'Mock User Agent',
+            createdAt: new Date(),
+            updatedAt: new Date(),
           },
         };
         

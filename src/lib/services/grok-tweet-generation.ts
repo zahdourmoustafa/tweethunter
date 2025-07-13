@@ -303,9 +303,7 @@ ${variationInstructions}
       default:
         return '*   **Focus:** Generate a tweet that authentically matches their voice and style.';
     }
-  }''
-
-  
+  }
 
   /**
    * Clean Grok-generated content while preserving authentic formatting

@@ -2,6 +2,7 @@
 
 # dependencies
 /.amazonq
+amazon-q.deb
 /node_modules
 /.pnp
 .pnp.*

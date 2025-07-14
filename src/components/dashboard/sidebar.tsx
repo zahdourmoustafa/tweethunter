@@ -15,7 +15,8 @@ import {
   Sparkles,
   Twitter,
   Calendar,
-  Wand2
+  Wand2,
+  Target
 } from "lucide-react";
 import { APP_CONFIG } from "@/lib/constants";
 
@@ -34,6 +35,11 @@ const navigation = [
     name: "Voice Generator",
     href: "/dashboard/voice-generator",
     icon: Wand2,
+  },
+  {
+    name: "Train AI from Creator",
+    href: "/dashboard/train-ai-creator",
+    icon: Target,
   },
   {
     name: "Generated Content",

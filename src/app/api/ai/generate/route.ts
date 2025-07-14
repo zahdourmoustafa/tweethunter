@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storytellerAgent } from '@/lib/ai/storyteller-agent';
-import { AITool } from '@/lib/types/aiTools';
+import { AITool, ContentType, VoiceGeneratorOptions } from '@/lib/types/aiTools';
+import { db } from '@/lib/db';
+import { voiceModels } from '@/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { auth } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,7 +31,68 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate content using our storyteller agent
+    // Handle VoiceGenerator tool specifically
+    if (tool === AITool.VoiceGenerator) {
+      // Check authentication for voice generation
+      const session = await auth.api.getSession({ headers: request.headers });
+      if (!session?.user?.id) {
+        return NextResponse.json(
+          { error: 'Authentication required for voice generation' },
+          { status: 401 }
+        );
+      }
+
+      const voiceOptions = options as VoiceGeneratorOptions;
+      
+      if (!voiceOptions.voiceModelId || !voiceOptions.contentType) {
+        return NextResponse.json(
+          { error: 'Voice model ID and content type are required for voice generation' },
+          { status: 400 }
+        );
+      }
+
+      // Fetch voice model data with user ownership check
+      const voiceModel = await db
+        .select()
+        .from(voiceModels)
+        .where(and(
+          eq(voiceModels.id, voiceOptions.voiceModelId),
+          eq(voiceModels.userId, session.user.id)
+        ))
+        .limit(1);
+
+      if (voiceModel.length === 0) {
+        return NextResponse.json(
+          { error: 'Voice model not found or access denied' },
+          { status: 404 }
+        );
+      }
+
+      // Prepare voice generation options
+      const enhancedOptions = {
+        voiceGeneratorOptions: {
+          contentType: voiceOptions.contentType,
+          voiceModelData: {
+            twitterUsername: voiceModel[0].twitterUsername,
+            analysisData: voiceModel[0].analysisData || {}
+          }
+        }
+      };
+
+      // Generate content using voice model
+      const result = await storytellerAgent.generateContent(
+        tool as AITool,
+        content,
+        enhancedOptions
+      );
+
+      return NextResponse.json({
+        success: true,
+        data: result
+      });
+    }
+
+    // Generate content using our storyteller agent for other tools
     const result = await storytellerAgent.generateContent(
       tool as AITool,
       content,

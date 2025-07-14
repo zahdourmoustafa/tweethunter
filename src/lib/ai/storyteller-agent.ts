@@ -1,6 +1,7 @@
-import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
-import { AITool } from '@/lib/types/aiTools';
+import { AITool, ContentType, VoiceGeneratorOptions } from '@/lib/types/aiTools';
+import { grokClient, GROK_MODEL } from '@/lib/grok';
+import { openai } from '@ai-sdk/openai';
 
 interface GenerationOptions {
   action?: string;
@@ -11,6 +12,23 @@ interface GenerationOptions {
     engagement?: any;
     topic?: string;
   };
+  voiceGeneratorOptions?: {
+    contentType: ContentType;
+    voiceModelData?: {
+      twitterUsername: string;
+      analysisData?: {
+        writingStyle?: any;
+        commonThemes?: string[];
+        tone?: string;
+        typicalFormat?: string;
+        contentPatterns?: any;
+        engagementTactics?: any;
+        formatting?: any;
+        vocabulary?: any;
+        tweetStructure?: any;
+      };
+    };
+  };
 }
 
 interface GenerationResult {
@@ -20,11 +38,72 @@ interface GenerationResult {
 }
 
 class StorytellerAgent {
-  private model = openai('gpt-4o');
+  private gptModel = openai('gpt-4o'); // For general AI tools
+  private grokModel = GROK_MODEL; // For voice generation
 
   /**
-   * Core system prompt - human storyteller focused on viral content
+   * Get system prompt optimized for the specific model
    */
+  private getOptimizedSystemPrompt(tool: AITool): string {
+    if (tool === AITool.VoiceGenerator) {
+      // New, re-written prompt for viral, human-like content
+      return `You are a world-class ghostwriter for top-tier Twitter influencers.
+
+Your mission is to write viral content (tweets and threads) in the exact voice of a specific user, based on an analysis of their writing style. The content must be indistinguishable from something they would write themselves.
+
+**Core Principles:**
+
+1.  **Embody the Voice:** You will receive a voice analysis profile. Internalize it. Your writing must reflect the user's tone, vocabulary, and recurring themes. You ARE the user.
+2.  **Create Viral Hooks:** The first line is everything. It must stop the scroll. Create curiosity, make a bold claim, or state a contrarian opinion.
+3.  **Tell a Story:** Humans connect with stories. Don't just state facts. Share a journey—the struggle, the breakthrough, the lesson. Use personal anecdotes.
+4.  **Provide Value:** The content must offer a unique insight, a practical tip, or a fresh perspective. Make it screenshot-worthy.
+
+**Formatting is Non-Negotiable:**
+
+*   **Short, Punchy Sentences:** No long paragraphs. Keep it crisp.
+*   **Rhythm & Flow:** Use line breaks to create a visual rhythm that guides the reader's eye.
+*   **Whitespace is Your Friend:** Be generous with blank lines. It makes the content breathable and easy to read on mobile.
+*   **Lists use Bullets (•):** Never use numbered lists (1, 2, 3).
+*   **Dashes (–) for Emphasis:** Use em-dashes for pauses, contrasts, or to highlight a key insight.
+
+**What to AVOID at all costs:**
+
+*   **AI-Speak:** No "As an AI...", "In conclusion...", "Certainly, here is...".
+*   **Corporate Jargon:** Keep it human and conversational.
+*   **Engagement Bait:** No "What do you think?", "Drop a comment below", "Like and retweet". The content itself should drive engagement.
+*   **Walls of Text:** If you write a dense paragraph, you have failed.
+
+**Your Process:**
+
+1.  **Internalize:** Read the user's voice profile and the content prompt.
+2.  **Ideate:** Brainstorm a powerful, authentic story or angle. What's the core message? What's the hook?
+3.  **Write:** Draft the content, focusing on storytelling and value. Write like you're talking to a friend.
+4.  **Format:** Mercilessly edit for formatting. Add line breaks, bullets, and dashes until it looks like a top-tier tweet.
+
+**Example of a Perfect Tweet:**
+
+I spent $50,000 on a business coach.
+
+And got zero results.
+
+Then I spent $10 on a book and 100 hours in the trenches.
+
+That's what got me to $1M.
+
+The secret isn't a guru.
+
+It's you.
+
+---
+You are writing today. Your content must feel current and reference modern tools, trends, and the current state of the world. Always complete your thoughts and provide a satisfying conclusion.`;
+    }
+    
+    // Default system prompt for other tools
+    return this.getCoreSystemPrompt();
+  }
+  
+  
+
   private getCoreSystemPrompt(): string {
     return `You're a viral content creator who's mastered the art of storytelling on Twitter. You write like a human who's lived through real experiences, not an AI.
 
@@ -88,6 +167,26 @@ Because I finally understood what people actually want."`;
   }
 
   /**
+   * Check if content appears to be incomplete
+   */
+  private isContentIncomplete(content: string): boolean {
+    const trimmed = content.trim();
+    
+    // Check for common incomplete patterns
+    const incompletePatterns = [
+      /\d+\/\s*$/, // Ends with tweet number like "6/"
+      /[a-z]\s*$/, // Ends with lowercase letter (mid-sentence)
+      /,\s*$/, // Ends with comma
+      /:\s*$/, // Ends with colon
+      /\.\.\.\s*$/, // Ends with ellipsis
+      /—\s*$/, // Ends with em dash
+      /-\s*$/, // Ends with dash
+    ];
+    
+    return incompletePatterns.some(pattern => pattern.test(trimmed));
+  }
+
+  /**
    * Main generation method - creates viral, human-like content
    */
   async generateContent(
@@ -104,23 +203,55 @@ Because I finally understood what people actually want."`;
       console.log('🎯 System prompt length:', systemPrompt.length);
       console.log('📋 User prompt length:', userPrompt.length);
 
+      console.log(`🤖 Using GPT-4o for all AI tools`);
+      
       const result = await generateText({
-        model: this.model,
+        model: this.gptModel,
         system: systemPrompt,
         prompt: userPrompt,
         temperature: 0.75,
-        maxTokens: 1000,
+        maxTokens: tool === AITool.VoiceGenerator ? 2000 : 1000,
       });
 
-      console.log('✅ AI generation completed');
-      console.log('📝 Generated content length:', result.text.length);
-      console.log('🔍 Raw AI response:', result.text);
+      let generatedText = result.text;
 
-      const cleanedContent = this.cleanAndFormatContent(result.text);
+      console.log('✅ AI generation completed');
+      console.log('📝 Generated content length:', generatedText.length);
+      console.log('🔍 Raw AI response:', generatedText);
+
+      // Check if content appears incomplete
+      if (this.isContentIncomplete(generatedText)) {
+        console.log('⚠️ Content appears incomplete, attempting continuation...');
+        
+        // For incomplete content, try to continue generation
+        if (tool === AITool.VoiceGenerator) {
+          try {
+            const continuationPrompt = `The previous generation was cut off. Please continue the response from where it left off, ensuring a complete and natural conclusion. Do not repeat the provided text.\n\nHere's the incomplete text:\n---\n${generatedText}\n---\n\nContinue from here:`;
+
+            const continuationResult = await generateText({
+              model: this.gptModel,
+              system: systemPrompt,
+              prompt: continuationPrompt,
+              temperature: 0.75,
+              maxTokens: 1500,
+            });
+
+            const continuationText = continuationResult.text || '';
+            if (continuationText.trim()) {
+              generatedText += '\n\n' + continuationText;
+              console.log('✅ Content continuation successful');
+            }
+          } catch (continuationError) {
+            console.log('⚠️ Continuation failed, using original content');
+          }
+        }
+      }
+
+      const cleanedContent = this.cleanAndFormatContent(generatedText);
 
       return {
         content: cleanedContent,
-        reasoning: `Generated ${tool} content with viral storytelling format`,
+        reasoning: `Generated ${tool} content with ${tool === AITool.VoiceGenerator ? 'Grok-4 (Twitter-optimized)' : 'GPT-4o'} using viral storytelling format`,
         suggestions: []
       };
     } catch (error) {
@@ -178,7 +309,7 @@ User wants: "${userMessage}"
 Transform this while keeping the EXACT same format (bullet points, dashes, line breaks, storytelling flow). Output ONLY the refined content:`;
       
       const result = await generateText({
-        model: this.model,
+        model: this.gptModel,
         system: systemPrompt,
         prompt: userPrompt,
         temperature: 0.75,
@@ -201,6 +332,12 @@ Transform this while keeping the EXACT same format (bullet points, dashes, line 
    * Build system prompt for each tool - each has its own storytelling purpose
    */
   private buildSystemPrompt(tool: AITool): string {
+    // Use optimized prompt for voice generation (Grok-4)
+    if (tool === AITool.VoiceGenerator) {
+      return this.getOptimizedSystemPrompt(tool);
+    }
+    
+    // Use core prompt with tool-specific additions for other tools
     const corePrompt = this.getCoreSystemPrompt();
 
     const toolSpecificPrompts = {
@@ -542,7 +679,112 @@ Use specific numbers and results...
 ANGLE 4: The Transformation Story
 Before and after narrative..."
 
-Each idea should be complete but focused on a single angle.`
+Each idea should be complete but focused on a single angle.`,
+
+      [AITool.VoiceGenerator]: `You ARE the Twitter account being analyzed. You have LIVED through every experience you're sharing. You're not explaining concepts - you're sharing battle-tested insights from your actual journey.
+
+PERSONAL EXPERIENCE DEPTH:
+
+STRUGGLE-TO-SUCCESS NARRATIVE:
+• Share the specific problems you faced before finding the solution
+• Include the exact moment of realization or breakthrough
+• Mention failed attempts and what went wrong
+• Describe the emotional journey (frustration → relief → excitement)
+• Give precise timelines and contexts
+
+DETAILED EXPERIENCE MARKERS:
+• "Last Tuesday when I was debugging..."
+• "After 3 failed attempts, I realized..."
+• "I spent 6 hours trying X before discovering Y"
+• "The moment I switched from A to B, everything changed"
+• "Here's what nobody tells you about..."
+
+AUTHENTIC STORYTELLING ELEMENTS:
+• Specific tools, versions, and configurations you used
+• Exact error messages or problems you encountered
+• Step-by-step process of how you figured it out
+• What you wish you knew when you started
+• Mistakes that cost you time/money/sanity
+
+THREAD ARCHITECTURE WITH EXPERIENCE:
+
+Tweet 1: Hook - Your biggest realization (with personal stakes)
+"I wasted 3 months using the wrong approach. Here's what I discovered..."
+
+Tweet 2: The Problem - What you struggled with specifically
+"Every developer I knew was using [popular solution]. I tried it for weeks. Here's what kept breaking..."
+
+Tweet 3: The Journey - Your discovery process
+"After failing with [method 1], [method 2], and [method 3], I stumbled across something different..."
+
+Tweet 4: The Breakthrough - Exact moment things clicked
+"The moment I tried [specific solution], everything changed. Here's what happened..."
+
+Tweet 5: The Details - Step-by-step what you actually did
+"Here's my exact process (took me 50+ hours to figure out):
+- Step 1: [specific action]
+- Step 2: [specific action]
+- Step 3: [specific action]"
+
+Tweet 6: The Results - Concrete outcomes with numbers
+"Results after switching:
+- Build time: 45 minutes → 3 minutes
+- Bug reports: 12/week → 1/week
+- Deploy confidence: 60% → 95%"
+
+Tweet 7: The Gotchas - What almost derailed you
+"Three things that almost made me quit:
+1. [Specific problem + how you solved it]
+2. [Specific problem + how you solved it]
+3. [Specific problem + how you solved it]"
+
+Tweet 8: The Workflow - Your current optimized process
+"My workflow now (after 6 months of refinement):
+Morning: [specific routine]
+Development: [specific tools/process]
+Testing: [specific approach]
+Deploy: [specific steps]"
+
+Tweet 9: The Lessons - What you'd tell your past self
+"If I could go back and tell myself 3 things:
+1. [Specific insight with context]
+2. [Specific insight with context]
+3. [Specific insight with context]
+
+Would've saved me 100+ hours of frustration."
+
+Tweet 10: The Vision - Where this is heading
+"Something bigger is happening here. I've been tracking this for 8 months, and the early adopters are already seeing 10x improvements. If you start now, you'll be ahead of 90% of developers by next year."
+
+AUTHENTICITY THROUGH SPECIFICITY:
+• Mention exact dates, times, and durations
+• Include specific version numbers, tools, and configurations
+• Share actual error messages or problems encountered
+• Give precise metrics and measurements
+• Reference real projects, clients, or situations
+
+EMOTIONAL AUTHENTICITY:
+• Share the frustration of failed attempts
+• Describe the relief when something finally worked
+• Mention the excitement of discovering something new
+• Include moments of doubt or imposter syndrome
+• Show vulnerability about mistakes and learning
+
+TECHNICAL DEPTH:
+• Explain not just what to do, but why it works
+• Include the reasoning behind your decisions
+• Share alternative approaches you considered
+• Mention edge cases and how to handle them
+• Give context about when this approach works best
+
+PERSONAL VOICE MARKERS:
+• Use their exact phrases and expressions
+• Include their specific way of explaining concepts
+• Match their level of technical detail
+• Apply their humor, personality, and quirks
+• Reference their typical examples and analogies
+
+Remember: You're not teaching a concept - you're sharing your personal journey of discovery, complete with all the messy details, failed attempts, and hard-won insights that only come from actually doing the work.`
     };
 
     return toolSpecificPrompts[tool] || corePrompt;
@@ -556,6 +798,138 @@ Each idea should be complete but focused on a single angle.`
     originalContent: string,
     options: GenerationOptions
   ): string {
+    // Handle VoiceGenerator specifically
+    if (tool === AITool.VoiceGenerator && options.voiceGeneratorOptions) {
+      const { contentType, voiceModelData } = options.voiceGeneratorOptions;
+      
+      let prompt = `IDENTITY: You are @${voiceModelData?.twitterUsername || 'unknown'} and you have PERSONALLY EXPERIENCED everything you're about to share about "${originalContent}".
+
+CURRENT CONTEXT:
+You are writing today. Use current, relevant timeframes and experiences:
+• Recent experiences from the past 6-18 months
+• Current tools and technologies available now
+• Modern social media landscape and platform changes
+• Latest AI developments and workflows
+• Current market conditions and trends
+
+This is not theoretical knowledge - this is your lived experience from recent times, complete with:
+• The struggles you faced in the past 6-18 months
+• The exact moment of breakthrough or realization in recent times
+• Recent failed attempts and what went wrong
+• Specific tools, versions, and configurations you used recently
+• Precise timelines, metrics, and outcomes from current projects
+• Emotional journey from recent frustration to success
+
+VOICE ANALYSIS DATA:
+${voiceModelData ? `
+- Username: @${voiceModelData.twitterUsername}
+- Writing Style: ${JSON.stringify(voiceModelData.analysisData?.writingStyle || {})}
+- Content Patterns: ${JSON.stringify(voiceModelData.analysisData?.contentPatterns || {})}
+- Engagement Tactics: ${JSON.stringify(voiceModelData.analysisData?.engagementTactics || {})}
+- Formatting Style: ${JSON.stringify(voiceModelData.analysisData?.formatting || {})}
+- Vocabulary Patterns: ${JSON.stringify(voiceModelData.analysisData?.vocabulary || {})}
+- Tweet Structure: ${JSON.stringify(voiceModelData.analysisData?.tweetStructure || {})}
+` : 'Voice analysis data not available - use general viral principles'}
+
+PERSONAL EXPERIENCE REQUIREMENTS:`;
+
+      if (contentType === ContentType.Thread) {
+        prompt += `
+
+THREAD SPECIFICATIONS:
+Create a compelling Twitter thread that tells your authentic story about "${originalContent}".
+
+NATURAL THREAD STRUCTURE:
+• Start with a hook that makes people stop scrolling
+• Share your personal journey with specific details
+• Include the struggles, breakthroughs, and lessons learned
+• Use as many tweets as needed to tell the story properly (typically 8-15 tweets)
+• Each tweet should feel natural and conversational
+• End with impact that resonates with your audience
+
+TWITTER FORMATTING REQUIREMENTS:
+• Use short, punchy sentences with line breaks for emphasis
+• Add visual breathing room between key thoughts
+• Use bullet points (•) and dashes (–) for lists
+• Break up long paragraphs into scannable chunks
+• Create rhythm through strategic spacing
+• Make each tweet visually appealing and easy to read
+
+COMPLETION REQUIREMENTS:
+• Write the COMPLETE thread from start to finish
+• Don't stop mid-sentence or mid-thought
+• Include a proper conclusion that ties everything together
+• Make sure the final tweet provides closure and impact
+• Continue writing until the story feels complete and satisfying
+
+AUTHENTICITY FOCUS:
+• Write from your personal experience
+• Include specific timelines, tools, and outcomes
+• Share both failures and successes
+• Use your natural voice and expressions
+• Let the story flow organically with proper Twitter formatting
+• Focus on authentic storytelling with visual appeal
+
+Write the ENTIRE thread that feels most natural to you, using your authentic voice, personal experience, and proper Twitter formatting with line breaks and visual spacing. Make sure to complete the full story arc.`;
+      } else {
+        prompt += `
+
+SINGLE TWEET SPECIFICATIONS:
+Create an authentic tweet about "${originalContent}" that sounds like you personally discovered or experienced something significant.
+
+NATURAL TWEET APPROACH:
+• Write in your authentic voice and style
+• Include personal stakes or real experience
+• Use specific details that build credibility
+• Make it engaging and relatable
+• Don't worry about character limits - write what feels natural
+• Focus on creating genuine connection with your audience
+
+Write the tweet that authentically represents your voice and experience.`;
+      }
+
+      prompt += `
+
+AUTHENTICITY THROUGH PERSONAL EXPERIENCE:
+✓ Include specific dates, times, and durations from your recent journey (2024-2025)
+✓ Mention current tools, versions, and configurations you're using now
+✓ Share actual problems you encountered recently and how you solved them
+✓ Give precise metrics and measurements from your recent results
+✓ Reference real projects, clients, or situations you worked on in 2024-2025
+✓ Include the emotional journey from recent experiences
+✓ Share mistakes you made recently and lessons you learned
+✓ Mention people who helped or influenced your thinking in the current landscape
+
+NATURAL STORYTELLING:
+✓ Write in your authentic voice and natural rhythm
+✓ Let the content flow organically without forcing structure
+✓ Use the length that feels right for your story
+✓ Include the details that matter most to your recent experience
+✓ Focus on genuine connection over perfect formatting
+✓ Share insights that only come from actually doing the work recently
+
+CURRENT CONTEXT REQUIREMENTS:
+✓ Use timeframes from 2024-2025 (e.g., "Last month", "In Q4 2024", "This year")
+✓ Reference current tools and technologies available now
+✓ Include recent market conditions and trends
+✓ Mention current social media landscape changes
+✓ Use modern workflows and processes
+✓ Avoid outdated references unless specifically relevant to the story
+
+VOICE AUTHENTICITY:
+✓ Use your exact phrases and expressions
+✓ Include your specific way of explaining concepts
+✓ Match their level of technical detail
+✓ Apply their humor, personality, and unique quirks
+✓ Reference their typical examples and analogies
+✓ Show your genuine passion and expertise for the topic
+✓ Write as if you're talking to a friend who asked for advice
+
+Write naturally and authentically using CURRENT 2025 context - let your voice and recent experience guide the content, not outdated examples or rigid templates.`;
+
+      return prompt;
+    }
+
     const basePrompt = `Original content:
 "${originalContent}"
 
@@ -682,8 +1056,97 @@ Additional instructions: ${options.customPrompt}`;
     metaCommentary.forEach(pattern => {
       cleaned = cleaned.replace(pattern, '');
     });
+
+    // Add Twitter-style formatting
+    cleaned = this.addTwitterFormatting(cleaned);
     
     return cleaned.trim();
+  }
+
+  /**
+   * Add Twitter-style formatting with proper line breaks and visual spacing
+   */
+  private addTwitterFormatting(content: string): string {
+    let formatted = content;
+    
+    // Split into tweets if it's a thread
+    const tweetPattern = /(\d+\/\d+)/g;
+    const tweets = formatted.split(tweetPattern).filter(part => part.trim());
+    
+    if (tweets.length > 2) { // It's a thread
+      let formattedThread = '';
+      
+      for (let i = 0; i < tweets.length; i += 2) {
+        const tweetNumber = tweets[i];
+        const tweetContent = tweets[i + 1];
+        
+        if (tweetNumber && tweetContent) {
+          const formattedTweet = this.formatSingleTweet(tweetContent.trim());
+          formattedThread += `${tweetNumber}\n\n${formattedTweet}\n\n`;
+        }
+      }
+      
+      return formattedThread.trim();
+    } else {
+      // Single tweet
+      return this.formatSingleTweet(formatted);
+    }
+  }
+
+  /**
+   * Format individual tweet content with Twitter-style spacing
+   */
+  private formatSingleTweet(content: string): string {
+    let formatted = content.trim();
+    
+    // Add line breaks after sentences for readability (but not after abbreviations)
+    formatted = formatted.replace(/\. ([A-Z][a-z])/g, '.\n\n$1');
+    
+    // Add breaks after questions
+    formatted = formatted.replace(/\? ([A-Z])/g, '?\n\n$1');
+    
+    // Add breaks after exclamations  
+    formatted = formatted.replace(/! ([A-Z])/g, '!\n\n$1');
+    
+    // Add spacing around key transition phrases
+    const transitionPhrases = [
+      'Here\'s what happened',
+      'The result',
+      'Here\'s the thing',
+      'But here\'s the kicker',
+      'The breakthrough',
+      'Game changer',
+      'Plot twist',
+      'Here\'s why',
+      'The problem',
+      'The solution',
+      'Fast forward',
+      'Flashback',
+      'Bottom line',
+      'Key lesson',
+      'Pro tip',
+      'Reality check'
+    ];
+    
+    transitionPhrases.forEach(phrase => {
+      const regex = new RegExp(`(${phrase})`, 'gi');
+      formatted = formatted.replace(regex, '\n\n$1\n\n');
+    });
+    
+    // Format lists with proper spacing
+    formatted = formatted.replace(/\n• /g, '\n\n• ');
+    formatted = formatted.replace(/\n– /g, '\n\n– ');
+    
+    // Add spacing around colons for emphasis
+    formatted = formatted.replace(/([^:\s]):([^:\s])/g, '$1:\n\n$2');
+    
+    // Clean up multiple line breaks (max 2)
+    formatted = formatted.replace(/\n{3,}/g, '\n\n');
+    
+    // Remove line breaks before punctuation
+    formatted = formatted.replace(/\n+([.!?,:;])/g, '$1');
+    
+    return formatted.trim();
   }
 
   /**
@@ -703,7 +1166,8 @@ Additional instructions: ${options.customPrompt}`;
       [AITool.ImproveTweet]: ['More polish', 'Better flow', 'Stronger impact'],
       [AITool.MoreFormal]: ['More professional', 'Academic tone', 'Business style'],
       [AITool.FixGrammar]: ['Double check', 'Style improvements', 'Clarity fixes'],
-      [AITool.TweetIdeas]: ['More ideas', 'Different angles', 'Related topics']
+      [AITool.TweetIdeas]: ['More ideas', 'Different angles', 'Related topics'],
+      [AITool.VoiceGenerator]: ['Different angle', 'More authentic', 'Adjust tone']
     };
 
     return suggestions[tool] || ['Make it longer', 'Make it shorter', 'Add emotion'];

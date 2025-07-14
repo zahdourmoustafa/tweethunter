@@ -13,4 +13,15 @@ export enum AITool {
   MoreFormal = "more-formal",
   FixGrammar = "fix-grammar",
   TweetIdeas = "tweet-ideas",
+  VoiceGenerator = "voice-generator",
+}
+
+export enum ContentType {
+  Tweet = "tweet",
+  Thread = "thread",
+}
+
+export interface VoiceGeneratorOptions {
+  contentType: ContentType;
+  voiceModelId: string;
 }

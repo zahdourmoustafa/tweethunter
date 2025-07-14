@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { AITool } from '@/lib/types/aiTools';
+import { AITool, VoiceGeneratorOptions } from '@/lib/types/aiTools';
 
 interface GenerationOptions {
   action?: string;
@@ -10,6 +10,9 @@ interface GenerationOptions {
     engagement?: any;
     topic?: string;
   };
+  // Add VoiceGenerator options
+  contentType?: string;
+  voiceModelId?: string;
 }
 
 interface GenerationResult {
@@ -35,7 +38,7 @@ export const useAIGeneration = () => {
   const generateContent = useCallback(async (
     tool: AITool,
     content: string,
-    options: GenerationOptions = {}
+    options: GenerationOptions | VoiceGeneratorOptions = {}
   ): Promise<GenerationResult> => {
     setIsGenerating(true);
     setError(null);

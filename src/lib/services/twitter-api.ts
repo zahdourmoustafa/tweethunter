@@ -1,15 +1,17 @@
 // Twitter API Service
-import { Tweet, TwitterApiResponse, ViralTweet, VIRAL_ENGAGEMENT_THRESHOLD, MONTHS_BACK } from '@/lib/types/training';
+import { Tweet, TwitterApiResponse, ViralTweet, VIRAL_ENGAGEMENT_THRESHOLD, MONTHS_BACK, MAX_VIRAL_TWEETS } from '@/lib/types/training';
 
 export class TwitterApiService {
   private apiKey: string;
   private baseUrl = 'https://api.twitterapi.io';
+  private maxViralTweetsLimit: number;
 
   constructor() {
     this.apiKey = process.env.TWITTERAPI_IO_API_KEY || '';
     if (!this.apiKey) {
       throw new Error('TWITTERAPI_IO_API_KEY environment variable is required');
     }
+    this.maxViralTweetsLimit = MAX_VIRAL_TWEETS;
   }
 
   /**
@@ -56,14 +58,14 @@ export class TwitterApiService {
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - MONTHS_BACK);
 
-      let allTweets: Tweet[] = [];
+      let viralTweets: ViralTweet[] = [];
       let cursor = '';
       let hasNextPage = true;
       let pageCount = 0;
       const maxPages = 50; // Increased to fetch more pages
 
       // Fetch tweets in pages until we have enough or hit time limit
-      while (hasNextPage && pageCount < maxPages) {
+      while (hasNextPage && pageCount < maxPages && viralTweets.length < this.maxViralTweetsLimit) {
         const response = await this.fetchTweetPage(cleanUsername, cursor);
         
         if (!response.success) {
@@ -78,27 +80,35 @@ export class TwitterApiService {
         
         // Ensure tweets is an array
         if (!Array.isArray(currentTweets)) {
-          return { tweets: [], error: 'Invalid tweet data format received' };
+          return { tweets: [], has_next_page: false, next_cursor: '', error: 'Invalid tweet data format received' };
         }
 
-        // Filter tweets by date - stop if we've gone too far back
-        const recentTweets = currentTweets.filter(tweet => {
-          if (!tweet || !tweet.createdAt) {
-            console.warn('Invalid tweet object:', tweet);
-            return false;
-          }
-          const tweetDate = new Date(tweet.createdAt);
-          return tweetDate >= sixMonthsAgo;
-        });
+        // Filter tweets by date and viral criteria
+        const newViralTweets = currentTweets
+          .filter(tweet => {
+            if (!tweet || !tweet.createdAt) {
+              console.warn('Invalid tweet object:', tweet);
+              return false;
+            }
+            const tweetDate = new Date(tweet.createdAt);
+            return tweetDate >= sixMonthsAgo && tweet.viewCount >= VIRAL_ENGAGEMENT_THRESHOLD;
+          })
+          .map(tweet => ({
+            ...tweet,
+            totalEngagement: tweet.likeCount + tweet.retweetCount + tweet.replyCount + tweet.quoteCount,
+            viralScore: this.calculateViralScore(tweet),
+          }));
 
         // If no recent tweets in this page, we've gone too far back
-        if (recentTweets.length === 0 && currentTweets.length > 0) {
+        if (newViralTweets.length === 0 && currentTweets.length > 0) {
           break;
         }
 
-        console.log(`Page ${pageCount + 1}: currentTweets.length = ${currentTweets.length}, recentTweets.length = ${recentTweets.length}`);
+        console.log(`Page ${pageCount + 1}: currentTweets.length = ${currentTweets.length}, newViralTweets.length = ${newViralTweets.length}`);
 
-        allTweets.push(...recentTweets);
+        viralTweets.push(...newViralTweets);
+        
+
         hasNextPage = response.data.has_next_page;
         cursor = response.data.next_cursor;
         pageCount++;
@@ -107,15 +117,17 @@ export class TwitterApiService {
         await this.delay(100);
       }
 
-      // Filter for viral tweets and calculate engagement
-      const viralTweets = this.filterViralTweets(allTweets);
+      // Sort and slice to the max limit
+      viralTweets = viralTweets
+        .sort((a, b) => b.totalEngagement - a.totalEngagement) // Sort by totalEngagement
+        .slice(0, this.maxViralTweetsLimit);
 
       if (viralTweets.length === 0) {
         return { 
           tweets: [], 
           has_next_page: false,
           next_cursor: '',
-          error: `No tweets found meeting viral criteria (${VIRAL_ENGAGEMENT_THRESHOLD.toLocaleString()}+ engagement, last ${MONTHS_BACK} months).` 
+          error: `No tweets found meeting viral criteria (${VIRAL_ENGAGEMENT_THRESHOLD.toLocaleString()}+ views, last ${MONTHS_BACK} months).` 
         };
       }
 
@@ -170,24 +182,7 @@ export class TwitterApiService {
     }
   }
 
-  /**
-   * Filters tweets for viral content and calculates engagement scores
-   */
-  private filterViralTweets(tweets: Tweet[]): ViralTweet[] {
-    return tweets
-      .map(tweet => {
-        const totalEngagement = tweet.likeCount + tweet.retweetCount + tweet.replyCount + tweet.quoteCount;
-        const viralScore = this.calculateViralScore(tweet);
-        
-        return {
-          ...tweet,
-          totalEngagement,
-          viralScore,
-        } as ViralTweet;
-      })
-      .filter(tweet => tweet.totalEngagement >= VIRAL_ENGAGEMENT_THRESHOLD)
-      .sort((a, b) => b.totalEngagement - a.totalEngagement);
-  }
+  
 
   /**
    * Calculates a viral score based on engagement patterns
@@ -255,6 +250,39 @@ export class TwitterApiService {
     } catch (error) {
       console.error('Error fetching user info:', error);
       return { success: false, error: 'Failed to fetch user info' };
+    }
+  }
+
+  /**
+   * Fetches a tweet thread context
+   */
+  async fetchTweetThread(tweetId: string): Promise<{ success: boolean; tweets: Tweet[]; error?: string }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/twitter/tweet/thread_context?tweetId=${tweetId}`, {
+        headers: {
+          'X-API-Key': this.apiKey,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        return { success: false, tweets: [], error: `API request failed with status ${response.status}` };
+      }
+
+      const data = await response.json();
+
+      if (data.status === 'error') {
+        return { success: false, tweets: [], error: data.message || 'Failed to fetch tweet thread' };
+      }
+
+      if (!data.data || !Array.isArray(data.data.tweets)) {
+        return { success: false, tweets: [], error: 'Invalid thread data format received' };
+      }
+
+      return { success: true, tweets: data.data.tweets };
+    } catch (error) {
+      console.error('Error fetching tweet thread:', error);
+      return { success: false, tweets: [], error: 'Network error while fetching tweet thread' };
     }
   }
 }

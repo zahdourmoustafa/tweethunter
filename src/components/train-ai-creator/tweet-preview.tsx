@@ -300,7 +300,7 @@ function TweetCard({ tweet, index, isSelected, onToggle }: TweetCardProps) {
             <span className="text-muted-foreground text-xs">{timeAgo}</span>
           </div>
 
-          <p className="text-sm mb-3 leading-relaxed">{tweet.text}</p>
+          <p className="text-sm mb-3 leading-relaxed whitespace-pre-wrap">{tweet.text}</p>
 
           {/* Engagement Metrics */}
           <div className="flex items-center space-x-4 text-xs text-muted-foreground">

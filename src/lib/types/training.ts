@@ -12,6 +12,8 @@ export interface Tweet {
   createdAt: string;
   lang?: string;
   bookmarkCount: number;
+  inReplyToId?: string;
+  conversationId?: string;
   author: {
     userName: string;
     name: string;
@@ -130,7 +132,7 @@ export type ApiResponse<T> = {
 
 // Constants
 export const VIRAL_ENGAGEMENT_THRESHOLD = 1000;
-export const MAX_VIRAL_TWEETS = 20;
+export const MAX_VIRAL_TWEETS = 100;
 export const MONTHS_BACK = 6;
 
 export const TRAINING_STEPS = [

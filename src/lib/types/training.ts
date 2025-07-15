@@ -14,6 +14,7 @@ export interface Tweet {
   bookmarkCount: number;
   inReplyToId?: string;
   conversationId?: string;
+  isReply?: boolean;
   author: {
     userName: string;
     name: string;

@@ -18,7 +18,9 @@ import {
   TrendingUp,
   Sparkles,
   ArrowLeft,
-  Loader2
+  Loader2,
+  MessageSquareText,
+  ExternalLink
 } from "lucide-react";
 import { ViralTweet, StartTrainingRequest, StartTrainingResponse } from "@/lib/types/training";
 import { formatDistanceToNow } from "date-fns";
@@ -270,6 +272,10 @@ interface TweetCardProps {
 function TweetCard({ tweet, index, isSelected, onToggle }: TweetCardProps) {
   const tweetDate = new Date(tweet.createdAt);
   const timeAgo = formatDistanceToNow(tweetDate, { addSuffix: true });
+  
+  // Check if this is a thread (either by isThread field or by 🧵 content)
+  const isThread = (tweet as any).isThread || tweet.text.includes('🧵');
+  const threadLength = (tweet as any).threadLength;
 
   return (
     <div
@@ -290,15 +296,43 @@ function TweetCard({ tweet, index, isSelected, onToggle }: TweetCardProps) {
 
         {/* Tweet Content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-2 mb-2">
-            <Avatar className="h-6 w-6">
-              <AvatarImage src={tweet.author.profilePicture} alt={tweet.author.name} />
-              <AvatarFallback className="text-xs">{tweet.author.name.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <span className="font-medium text-sm">{tweet.author.name}</span>
-            <span className="text-muted-foreground text-sm">@{tweet.author.userName}</span>
-            <span className="text-muted-foreground text-xs">•</span>
-            <span className="text-muted-foreground text-xs">{timeAgo}</span>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-2">
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={tweet.author.profilePicture} alt={tweet.author.name} />
+                <AvatarFallback className="text-xs">{tweet.author.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <span className="font-medium text-sm">{tweet.author.name}</span>
+              <span className="text-muted-foreground text-sm">@{tweet.author.userName}</span>
+              <span className="text-muted-foreground text-xs">•</span>
+              <span className="text-muted-foreground text-xs">{timeAgo}</span>
+              
+              {/* Thread/Tweet Badge */}
+              <span className="text-muted-foreground text-xs">•</span>
+              {isThread ? (
+                <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                  <MessageSquareText className="h-3 w-3 mr-1" />
+                  Thread {threadLength && `(${threadLength})`}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs">
+                  <MessageCircle className="h-3 w-3 mr-1" />
+                  Tweet
+                </Badge>
+              )}
+            </div>
+            
+            {/* Link to original tweet */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(tweet.url, '_blank', 'noopener,noreferrer');
+              }}
+              className="flex items-center space-x-1 text-muted-foreground hover:text-primary transition-colors p-1 rounded hover:bg-muted"
+              title="View original tweet"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </button>
           </div>
 
           <p className="text-sm mb-3 leading-relaxed whitespace-pre-wrap">{tweet.text}</p>

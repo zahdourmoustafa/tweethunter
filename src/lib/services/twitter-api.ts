@@ -83,42 +83,12 @@ export class TwitterApiService {
           return { tweets: [], has_next_page: false, next_cursor: '', error: 'Invalid tweet data format received' };
         }
 
-        // Filter tweets by date and viral criteria
-        const newViralTweets = currentTweets
-          .filter(tweet => {
-            if (!tweet || !tweet.createdAt) {
-              console.warn('Invalid tweet object:', tweet);
-              return false;
-            }
-            const tweetDate = new Date(tweet.createdAt);
-            
-            // Calculate total engagement for fallback when viewCount is 0
-            const totalEngagement = tweet.likeCount + tweet.retweetCount + tweet.replyCount + tweet.quoteCount;
-            
-            // Use viewCount if available and > 0, otherwise use total engagement
-            const viralMetric = tweet.viewCount > 0 ? tweet.viewCount : totalEngagement;
-            
-            // Debug log for viewCount = 0 cases
-            if (tweet.viewCount === 0 && totalEngagement >= VIRAL_ENGAGEMENT_THRESHOLD) {
-              console.log(`Tweet with 0 viewCount but high engagement: ${tweet.id}, engagement: ${totalEngagement}`);
-            }
-            
-            return tweetDate >= sixMonthsAgo && viralMetric >= VIRAL_ENGAGEMENT_THRESHOLD;
-          })
-          .map(tweet => ({
-            ...tweet,
-            totalEngagement: tweet.likeCount + tweet.retweetCount + tweet.replyCount + tweet.quoteCount,
-            viralScore: this.calculateViralScore(tweet),
-          }));
+        // Process threads and filter tweets by date and viral criteria
+        const processedTweets = await this.processThreadsAndFilter(currentTweets, sixMonthsAgo);
+        
+        console.log(`Page ${pageCount + 1}: currentTweets.length = ${currentTweets.length}, processedTweets.length = ${processedTweets.length}`);
 
-        // If no recent tweets in this page, we've gone too far back
-        if (newViralTweets.length === 0 && currentTweets.length > 0) {
-          break;
-        }
-
-        console.log(`Page ${pageCount + 1}: currentTweets.length = ${currentTweets.length}, newViralTweets.length = ${newViralTweets.length}`);
-
-        viralTweets.push(...newViralTweets);
+        viralTweets.push(...processedTweets);
         
 
         hasNextPage = response.data.has_next_page;
@@ -152,6 +122,157 @@ export class TwitterApiService {
       console.error('Error fetching viral tweets:', error);
       return { tweets: [], has_next_page: false, next_cursor: '', error: 'Unable to fetch tweets. Please try again later.' };
     }
+  }
+
+  /**
+   * Processes threads and filters tweets by viral criteria
+   */
+  private async processThreadsAndFilter(tweets: Tweet[], sixMonthsAgo: Date): Promise<ViralTweet[]> {
+    // First, filter out retweets and old tweets
+    const validTweets = tweets.filter(tweet => {
+      if (!tweet || !tweet.createdAt) {
+        console.warn('Invalid tweet object:', tweet);
+        return false;
+      }
+      
+      const tweetDate = new Date(tweet.createdAt);
+      const isRecent = tweetDate >= sixMonthsAgo;
+      
+      // Skip retweets - multiple ways to detect them:
+      // 1. Text starts with "RT @"
+      // 2. Has retweeted_tweet field
+      // 3. Very high retweet count compared to other metrics (likely a RT)
+      const isRetweet = tweet.text.startsWith('RT @') || 
+                       (tweet as any).retweeted_tweet ||
+                       (tweet as any).retweeted_status;
+      
+      if (isRetweet) {
+        console.log(`Skipping retweet: ${tweet.id} - "${tweet.text.substring(0, 50)}..."`);
+      }
+      
+      return isRecent && !isRetweet;
+    });
+
+    console.log(`Filtered ${tweets.length} tweets down to ${validTweets.length} valid tweets (excluding RTs and old tweets)`);
+
+    // Group tweets by conversation to identify threads
+    const conversationGroups = this.groupTweetsByConversation(validTweets);
+    
+    console.log(`Found ${conversationGroups.size} conversations from ${validTweets.length} tweets`);
+    
+    // Process each conversation group
+    const processedTweets: ViralTweet[] = [];
+    
+    for (const [conversationId, conversationTweets] of conversationGroups.entries()) {
+      if (conversationTweets.length === 1) {
+        // Single tweet, process normally
+        const tweet = conversationTweets[0];
+        const processedTweet = this.processSingleTweet(tweet);
+        if (processedTweet) {
+          processedTweets.push(processedTweet);
+        }
+      } else {
+        // Thread detected, combine into one tweet
+        console.log(`Processing thread with ${conversationTweets.length} tweets in conversation ${conversationId}`);
+        const threadTweet = this.combineThreadTweets(conversationTweets);
+        if (threadTweet) {
+          const processedTweet = this.processSingleTweet(threadTweet);
+          if (processedTweet) {
+            processedTweets.push(processedTweet);
+          }
+        }
+      }
+    }
+    
+    return processedTweets;
+  }
+
+  /**
+   * Groups tweets by conversation ID to identify threads
+   */
+  private groupTweetsByConversation(tweets: Tweet[]): Map<string, Tweet[]> {
+    const conversationGroups = new Map<string, Tweet[]>();
+    
+    for (const tweet of tweets) {
+      const conversationId = tweet.conversationId || tweet.id;
+      
+      if (!conversationGroups.has(conversationId)) {
+        conversationGroups.set(conversationId, []);
+      }
+      
+      conversationGroups.get(conversationId)!.push(tweet);
+    }
+    
+    // Sort tweets within each conversation by creation date
+    for (const [conversationId, conversationTweets] of conversationGroups.entries()) {
+      conversationTweets.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    }
+    
+    return conversationGroups;
+  }
+
+  /**
+   * Combines multiple tweets in a thread into a single tweet
+   */
+  private combineThreadTweets(tweets: Tweet[]): Tweet | null {
+    if (tweets.length === 0) return null;
+    
+    // Use the first tweet as the base (it has the main metrics)
+    const baseTweet = tweets[0];
+    
+    // Combine all text content with clean thread formatting
+    const combinedText = tweets
+      .map((tweet, index) => {
+        if (index === 0) {
+          return tweet.text;
+        } else {
+          // Add a clean separator for thread continuation
+          return `\n\n🧵 ${tweet.text}`;
+        }
+      })
+      .join('');
+    
+    // Create combined tweet with base tweet's metrics but combined content
+    const combinedTweet: Tweet & { isThread?: boolean; threadLength?: number } = {
+      ...baseTweet,
+      text: combinedText,
+      // Add custom fields to track that this is a combined thread
+      isThread: true,
+      threadLength: tweets.length,
+    };
+    
+    console.log(`✅ Combined thread: ${tweets.length} tweets into one.`);
+    console.log(`   Original: "${baseTweet.text.substring(0, 100)}..."`);
+    console.log(`   Combined length: ${combinedText.length} characters`);
+    
+    return combinedTweet;
+  }
+
+  /**
+   * Processes a single tweet and checks if it meets viral criteria
+   */
+  private processSingleTweet(tweet: Tweet): ViralTweet | null {
+    // Calculate total engagement for fallback when viewCount is 0
+    const totalEngagement = tweet.likeCount + tweet.retweetCount + tweet.replyCount + tweet.quoteCount;
+    
+    // Use viewCount if available and > 0, otherwise use total engagement
+    const viralMetric = tweet.viewCount > 0 ? tweet.viewCount : totalEngagement;
+    
+    // Debug log for viewCount = 0 cases
+    if (tweet.viewCount === 0 && totalEngagement >= VIRAL_ENGAGEMENT_THRESHOLD) {
+      console.log(`Tweet with 0 viewCount but high engagement: ${tweet.id}, engagement: ${totalEngagement}`);
+    }
+    
+    // Check if meets viral criteria
+    if (viralMetric < VIRAL_ENGAGEMENT_THRESHOLD) {
+      return null;
+    }
+    
+    return {
+      ...tweet,
+      totalEngagement,
+      viralScore: this.calculateViralScore(tweet),
+    };
   }
 
   /**

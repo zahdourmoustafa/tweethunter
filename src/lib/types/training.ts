@@ -131,7 +131,7 @@ export type ApiResponse<T> = {
 };
 
 // Constants
-export const VIRAL_ENGAGEMENT_THRESHOLD = 1000;
+export const VIRAL_ENGAGEMENT_THRESHOLD = 100; // Lowered from 1000 to capture more viral tweets
 export const MAX_VIRAL_TWEETS = 100;
 export const MONTHS_BACK = 6;
 

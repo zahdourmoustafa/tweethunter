@@ -91,7 +91,19 @@ export class TwitterApiService {
               return false;
             }
             const tweetDate = new Date(tweet.createdAt);
-            return tweetDate >= sixMonthsAgo && tweet.viewCount >= VIRAL_ENGAGEMENT_THRESHOLD;
+            
+            // Calculate total engagement for fallback when viewCount is 0
+            const totalEngagement = tweet.likeCount + tweet.retweetCount + tweet.replyCount + tweet.quoteCount;
+            
+            // Use viewCount if available and > 0, otherwise use total engagement
+            const viralMetric = tweet.viewCount > 0 ? tweet.viewCount : totalEngagement;
+            
+            // Debug log for viewCount = 0 cases
+            if (tweet.viewCount === 0 && totalEngagement >= VIRAL_ENGAGEMENT_THRESHOLD) {
+              console.log(`Tweet with 0 viewCount but high engagement: ${tweet.id}, engagement: ${totalEngagement}`);
+            }
+            
+            return tweetDate >= sixMonthsAgo && viralMetric >= VIRAL_ENGAGEMENT_THRESHOLD;
           })
           .map(tweet => ({
             ...tweet,
@@ -127,7 +139,7 @@ export class TwitterApiService {
           tweets: [], 
           has_next_page: false,
           next_cursor: '',
-          error: `No tweets found meeting viral criteria (${VIRAL_ENGAGEMENT_THRESHOLD.toLocaleString()}+ views, last ${MONTHS_BACK} months).` 
+          error: `No tweets found meeting viral criteria (${VIRAL_ENGAGEMENT_THRESHOLD.toLocaleString()}+ views or total engagement, last ${MONTHS_BACK} months).` 
         };
       }
 
@@ -203,10 +215,15 @@ export class TwitterApiService {
       (replyCount * replyWeight)
     );
 
-    // Factor in view count if available
-    const viewRatio = viewCount > 0 ? engagementScore / viewCount : 0;
+    // Factor in view count if available and > 0
+    if (viewCount > 0) {
+      const viewRatio = engagementScore / viewCount;
+      return Math.round(engagementScore + (viewRatio * 1000));
+    }
     
-    return Math.round(engagementScore + (viewRatio * 1000));
+    // If viewCount is 0 or unavailable, use engagement score with a bonus for high engagement
+    const highEngagementBonus = engagementScore > 100 ? engagementScore * 0.1 : 0;
+    return Math.round(engagementScore + highEngagementBonus);
   }
 
   /**

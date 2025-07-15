@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { ViralTweet, StartTrainingRequest, StartTrainingResponse } from "@/lib/types/training";
 import { formatDistanceToNow } from "date-fns";
+import { formatNumber } from "@/lib/utils";
 
 export function TweetPreview() {
   const { state, dispatch } = useTrainAiCreator();
@@ -156,13 +157,13 @@ export function TweetPreview() {
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">
-                {(state.totalEngagement / 1000000).toFixed(1)}M
+                {formatNumber(state.totalEngagement)}
               </div>
               <div className="text-sm text-muted-foreground">Total Engagement</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">
-                {Math.round(state.totalEngagement / state.tweets.length / 1000)}K
+                {formatNumber(Math.round(state.totalEngagement / state.tweets.length))}
               </div>
               <div className="text-sm text-muted-foreground">Avg Engagement</div>
             </div>
@@ -325,7 +326,7 @@ function TweetCard({ tweet, index, isSelected, onToggle }: TweetCardProps) {
             {tweet.viewCount > 0 && (
               <div className="flex items-center space-x-1">
                 <Eye className="h-3 w-3" />
-                <span>{(tweet.viewCount / 1000000).toFixed(1)}M</span>
+                <span>{formatNumber(tweet.viewCount)}</span>
               </div>
             )}
           </div>

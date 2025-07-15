@@ -48,6 +48,7 @@ import { AIToolModalV2 } from "@/components/ai-editor/ai-tool-modal-v2";
 import { ScheduleModal } from "@/components/schedule-modal";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatNumber } from "@/lib/utils";
 import { useAIGeneration } from "@/hooks/use-ai-generation";
 import { AITool } from "@/lib/types/aiTools";
 import { toast } from "sonner";
@@ -847,19 +848,19 @@ const InspirationsPage = () => {
                       <div className="flex items-center gap-6 text-sm text-gray-500">
                         <div className="flex items-center gap-1">
                           <Heart className="h-4 w-4" />
-                          <span>{formatCount(tweet.public_metrics.like_count)}</span>
+                          <span>{formatNumber(tweet.public_metrics.like_count)}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Repeat2 className="h-4 w-4" />
-                          <span>{formatCount(tweet.public_metrics.retweet_count)}</span>
+                          <span>{formatNumber(tweet.public_metrics.retweet_count)}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <MessageCircle className="h-4 w-4" />
-                          <span>{formatCount(tweet.public_metrics.reply_count)}</span>
+                          <span>{formatNumber(tweet.public_metrics.reply_count)}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Eye className="h-4 w-4" />
-                          <span>{formatCount(tweet.public_metrics.impression_count)}</span>
+                          <span>{formatNumber(tweet.public_metrics.impression_count)}</span>
                         </div>
                       </div>
                       

@@ -108,4 +108,64 @@ export async function PUT(
       { status: 500 }
     );
   }
-} 
+}
+
+export async function PATCH(
+  request: NextRequest,
+  context: RouteParams
+) {
+  try {
+    const { id: tweetId } = await context.params;
+    const body = await request.json();
+    
+    // TODO: Get actual user ID from authentication
+    const userId = "user-placeholder";
+    
+    // Validate required fields
+    if (!body.status) {
+      return NextResponse.json(
+        { status: 'error', error: 'Missing required field: status' },
+        { status: 400 }
+      );
+    }
+
+    // Update only the status and related fields
+    const updateData: any = {
+      status: body.status as any,
+      updatedAt: new Date(),
+    };
+
+    if (body.status === 'posted' && body.postedAt) {
+      updateData.postedAt = new Date(body.postedAt);
+    }
+
+    const [updatedTweet] = await db
+      .update(scheduledTweets)
+      .set(updateData)
+      .where(
+        and(
+          eq(scheduledTweets.id, tweetId),
+          eq(scheduledTweets.userId, userId)
+        )
+      )
+      .returning();
+
+    if (!updatedTweet) {
+      return NextResponse.json(
+        { status: 'error', error: 'Scheduled tweet not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      status: 'success',
+      scheduledTweet: updatedTweet,
+    });
+  } catch (error) {
+    console.error('Failed to update tweet status:', error);
+    return NextResponse.json(
+      { status: 'error', error: 'Failed to update tweet status' },
+      { status: 500 }
+    );
+  }
+}

@@ -1,10 +1,29 @@
 // Client-side environment configuration
 // Only NEXT_PUBLIC_ prefixed variables are available on the client
 
+function getClientBaseURL() {
+  // In browser, use window.location
+  if (typeof window !== 'undefined') {
+    return `${window.location.protocol}//${window.location.host}`;
+  }
+  
+  // For SSR, use environment variables
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  if (process.env.NEXT_PUBLIC_BETTER_AUTH_URL) {
+    return process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('NEXT_PUBLIC_BETTER_AUTH_URL must be set in production');
+  }
+  return 'http://localhost:3000';
+}
+
 function validateClientEnv() {
   // These should be NEXT_PUBLIC_ prefixed for client access
   const clientEnv = {
-    BETTER_AUTH_URL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL || "http://localhost:3000",
+    BETTER_AUTH_URL: getClientBaseURL(),
     TWITTER_CLIENT_ID: process.env.NEXT_PUBLIC_TWITTER_CLIENT_ID || "",
     NODE_ENV: (process.env.NODE_ENV as "development" | "production" | "test") || "development",
   };

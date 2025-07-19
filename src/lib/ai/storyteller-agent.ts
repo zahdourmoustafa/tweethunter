@@ -1,6 +1,6 @@
 import { generateText } from 'ai';
-import { AITool, ContentType,  } from '@/lib/types/aiTools';
-import {  GROK_MODEL } from '@/lib/grok';
+import { AITool, ContentType, VoiceGeneratorOptions } from '@/lib/types/aiTools';
+import { grokClient, GROK_MODEL } from '@/lib/grok';
 import { openai } from '@ai-sdk/openai';
 
 interface GenerationOptions {

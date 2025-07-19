@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, addMonths, subMonths, addWeeks, subWeeks, addDays, startOfWeek, endOfWeek, eachWeekOfInterval } from "date-fns"
-import { Loader2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Trash2, Eye, Edit, MessageSquare } from "lucide-react"
+import { Loader2, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Trash2, Eye, Edit, MessageSquare, X, Copy } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -43,7 +43,7 @@ export default function CalendarPage() {
   const [view, setView] = useState<CalendarView>("month")
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-
+  const [selectedTweet, setSelectedTweet] = useState<ScheduledTweet | null>(null)
   const fetchScheduledTweets = async () => {
     try {
       setIsLoading(true)
@@ -88,6 +88,46 @@ export default function CalendarPage() {
     }
   }
 
+  const handleTweetClick = (tweet: ScheduledTweet) => {
+    setSelectedTweet(tweet)
+  }
+
+  const handleClosePanel = () => {
+    setSelectedTweet(null)
+  }
+
+  const handleCopyTweet = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content)
+      toast.success("Tweet copied to clipboard!")
+    } catch (error) {
+      console.error('Copy failed:', error)
+      toast.error("Failed to copy tweet")
+    }
+  }
+
+  const handleMarkAsPosted = async (tweetId: string) => {
+    try {
+      const response = await fetch(`/api/scheduled-tweets/${tweetId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'posted',
+          postedAt: new Date().toISOString()
+        })
+      })
+
+      if (!response.ok) throw new Error("Failed to mark as posted")
+
+      await fetchScheduledTweets()
+      toast.success("🎉 Tweet marked as posted!")
+    } catch (error) {
+      console.error("Error marking as posted:", error)
+      toast.error("Failed to mark tweet as posted")
+    }
+  }
   const getTweetsForDate = (date: Date) => {
     return scheduledTweets.filter(tweet => 
       isSameDay(new Date(tweet.scheduledAt), date)
@@ -145,18 +185,21 @@ export default function CalendarPage() {
               
               {/* Tweet indicators */}
               <div className="space-y-1">
-                {dayTweets.slice(0, 3).map(tweet => (
-                  <div
-                    key={tweet.id}
-                    className={cn(
-                      "text-xs p-1 rounded truncate",
-                      statusColors[tweet.status]
-                    )}
-                  >
-                    {tweet.isThread ? '🧵 ' : ''}{tweet.content.substring(0, 20)}...
-                  </div>
-                ))}
-                {dayTweets.length > 3 && (
+                 {dayTweets.slice(0, 3).map(tweet => (
+                   <div
+                     key={tweet.id}
+                     className={cn(
+                       "text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 transition-opacity",
+                       statusColors[tweet.status]
+                     )}
+                     onClick={(e) => {
+                       e.stopPropagation()
+                       handleTweetClick(tweet)
+                     }}
+                   >
+                     {tweet.isThread ? '🧵 ' : ''}{tweet.content.substring(0, 20)}...
+                   </div>
+                 ))}                {dayTweets.length > 3 && (
                   <div className="text-xs text-muted-foreground">
                     +{dayTweets.length - 3} more
                   </div>
@@ -190,22 +233,25 @@ export default function CalendarPage() {
                 <div className="text-lg font-bold">{format(day, 'd')}</div>
               </div>
               
-              <div className="space-y-1 min-h-96">
-                {dayTweets.map(tweet => (
-                  <Card key={tweet.id} className="p-2">
-                    <div className={cn("text-xs px-2 py-1 rounded mb-1", statusColors[tweet.status])}>
-                      {tweet.status}
-                    </div>
-                    <div className="text-sm truncate">
-                      {tweet.isThread ? '🧵 ' : ''}{tweet.content.substring(0, 30)}...
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {format(new Date(tweet.scheduledAt), 'h:mm a')}
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
+               <div className="space-y-1 min-h-96">
+                 {dayTweets.map(tweet => (
+                   <Card 
+                     key={tweet.id} 
+                     className="p-2 cursor-pointer hover:shadow-md transition-shadow"
+                     onClick={() => handleTweetClick(tweet)}
+                   >
+                     <div className={cn("text-xs px-2 py-1 rounded mb-1", statusColors[tweet.status])}>
+                       {tweet.status}
+                     </div>
+                     <div className="text-sm truncate">
+                       {tweet.isThread ? '🧵 ' : ''}{tweet.content.substring(0, 30)}...
+                     </div>
+                     <div className="text-xs text-muted-foreground">
+                       {format(new Date(tweet.scheduledAt), 'h:mm a')}
+                     </div>
+                   </Card>
+                 ))}
+               </div>            </div>
           )
         })}
       </div>
@@ -227,46 +273,52 @@ export default function CalendarPage() {
               No tweets scheduled for this day
             </div>
           ) : (
-            dayTweets.map(tweet => (
-              <Card key={tweet.id} className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Badge className={statusColors[tweet.status]}>
-                        {tweet.status}
-                      </Badge>
-                      {tweet.isThread && (
-                        <Badge variant="outline">
-                          <MessageSquare className="h-3 w-3 mr-1" />
-                          Thread
-                        </Badge>
-                      )}
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Clock className="h-3 w-3 mr-1" />
-                        {format(new Date(tweet.scheduledAt), 'h:mm a')}
-                      </div>
-                    </div>
-                    
-                    <p className="text-sm leading-relaxed">{tweet.content}</p>
-                    
-                    {tweet.toolUsed && (
-                      <div className="text-xs text-muted-foreground">
-                        Generated with: {tweet.toolUsed}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteTweet(tweet.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </Card>
-            ))
-          )}
+             dayTweets.map(tweet => (
+               <Card 
+                 key={tweet.id} 
+                 className="p-4 cursor-pointer hover:shadow-md transition-shadow"
+                 onClick={() => handleTweetClick(tweet)}
+               >
+                 <div className="flex items-start justify-between">
+                   <div className="space-y-2 flex-1">
+                     <div className="flex items-center gap-2">
+                       <Badge className={statusColors[tweet.status]}>
+                         {tweet.status}
+                       </Badge>
+                       {tweet.isThread && (
+                         <Badge variant="outline">
+                           <MessageSquare className="h-3 w-3 mr-1" />
+                           Thread
+                         </Badge>
+                       )}
+                       <div className="flex items-center text-sm text-muted-foreground">
+                         <Clock className="h-3 w-3 mr-1" />
+                         {format(new Date(tweet.scheduledAt), 'h:mm a')}
+                       </div>
+                     </div>
+                     
+                     <p className="text-sm leading-relaxed">{tweet.content}</p>
+                     
+                     {tweet.toolUsed && (
+                       <div className="text-xs text-muted-foreground">
+                         Generated with: {tweet.toolUsed}
+                       </div>
+                     )}
+                   </div>
+                   
+                   <Button
+                     variant="ghost"
+                     size="sm"
+                     onClick={(e) => {
+                       e.stopPropagation()
+                       handleDeleteTweet(tweet.id)
+                     }}
+                   >
+                     <Trash2 className="h-4 w-4" />
+                   </Button>
+                 </div>
+               </Card>
+             ))          )}
         </div>
       </div>
     )
@@ -290,46 +342,52 @@ export default function CalendarPage() {
               No upcoming scheduled tweets
             </div>
           ) : (
-            upcomingTweets.map(tweet => (
-              <Card key={tweet.id} className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Badge className={statusColors[tweet.status]}>
-                        {tweet.status}
-                      </Badge>
-                      {tweet.isThread && (
-                        <Badge variant="outline">
-                          <MessageSquare className="h-3 w-3 mr-1" />
-                          Thread
-                        </Badge>
-                      )}
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Clock className="h-3 w-3 mr-1" />
-                        {format(new Date(tweet.scheduledAt), 'MMM d, h:mm a')}
-                      </div>
-                    </div>
-                    
-                    <p className="text-sm leading-relaxed">{tweet.content}</p>
-                    
-                    {tweet.toolUsed && (
-                      <div className="text-xs text-muted-foreground">
-                        Generated with: {tweet.toolUsed}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteTweet(tweet.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </Card>
-            ))
-          )}
+             upcomingTweets.map(tweet => (
+               <Card 
+                 key={tweet.id} 
+                 className="p-4 cursor-pointer hover:shadow-md transition-shadow"
+                 onClick={() => handleTweetClick(tweet)}
+               >
+                 <div className="flex items-start justify-between">
+                   <div className="space-y-2 flex-1">
+                     <div className="flex items-center gap-2">
+                       <Badge className={statusColors[tweet.status]}>
+                         {tweet.status}
+                       </Badge>
+                       {tweet.isThread && (
+                         <Badge variant="outline">
+                           <MessageSquare className="h-3 w-3 mr-1" />
+                           Thread
+                         </Badge>
+                       )}
+                       <div className="flex items-center text-sm text-muted-foreground">
+                         <Clock className="h-3 w-3 mr-1" />
+                         {format(new Date(tweet.scheduledAt), 'MMM d, h:mm a')}
+                       </div>
+                     </div>
+                     
+                     <p className="text-sm leading-relaxed">{tweet.content}</p>
+                     
+                     {tweet.toolUsed && (
+                       <div className="text-xs text-muted-foreground">
+                         Generated with: {tweet.toolUsed}
+                       </div>
+                     )}
+                   </div>
+                   
+                   <Button
+                     variant="ghost"
+                     size="sm"
+                     onClick={(e) => {
+                       e.stopPropagation()
+                       handleDeleteTweet(tweet.id)
+                     }}
+                   >
+                     <Trash2 className="h-4 w-4" />
+                   </Button>
+                 </div>
+               </Card>
+             ))          )}
         </div>
       </div>
     )
@@ -344,139 +402,226 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Tweet Calendar</h1>
-          <p className="text-muted-foreground">
-            View and manage your scheduled tweets
-          </p>
-        </div>
-        
-        {/* Statistics */}
-        <div className="flex gap-4">
-          <Card className="p-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">
-                {scheduledTweets.filter(t => t.status === "scheduled").length}
-              </div>
-              <div className="text-sm text-muted-foreground">Scheduled</div>
+    <div className="flex h-screen bg-gray-50">
+      {/* Main Calendar Area */}
+      <div className="flex-1 overflow-auto">
+        <div className="p-4 space-y-4">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Tweet Calendar</h1>
+              <p className="text-sm text-muted-foreground">
+                View and manage your scheduled tweets
+              </p>
             </div>
-          </Card>
-          <Card className="p-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {scheduledTweets.filter(t => t.status === "posted").length}
-              </div>
-              <div className="text-sm text-muted-foreground">Posted</div>
+            
+            {/* Statistics */}
+            <div className="flex gap-4">
+              <Card className="p-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {scheduledTweets.filter(t => t.status === "scheduled").length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Scheduled</div>
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {scheduledTweets.filter(t => t.status === "posted").length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Posted</div>
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">
+                    {scheduledTweets.filter(t => t.status === "failed").length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Failed</div>
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold">
+                    {scheduledTweets.length}
+                  </div>
+                  <div className="text-sm text-muted-foreground">Total</div>
+                </div>
+              </Card>
             </div>
-          </Card>
-          <Card className="p-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-600">
-                {scheduledTweets.filter(t => t.status === "failed").length}
+          </div>
+
+          {/* Calendar Controls */}
+          <Card>
+            <CardHeader className="py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Select value={view} onValueChange={(value: CalendarView) => setView(value)}>
+                    <SelectTrigger className="w-28 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="month">Month</SelectItem>
+                      <SelectItem value="week">Week</SelectItem>
+                      <SelectItem value="day">Day</SelectItem>
+                      <SelectItem value="agenda">Agenda</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" onClick={() => navigateCalendar('prev')}>
+                      <ChevronLeft className="h-3 w-3" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
+                      Today
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => navigateCalendar('next')}>
+                      <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4" />
+                  <span className="text-sm font-semibold">
+                    {view === 'month' && format(currentDate, 'MMMM yyyy')}
+                    {view === 'week' && `Week of ${format(startOfWeek(currentDate), 'MMM d')}`}
+                    {view === 'day' && format(currentDate, 'MMMM d, yyyy')}
+                    {view === 'agenda' && 'Upcoming'}
+                  </span>
+                </div>
               </div>
-              <div className="text-sm text-muted-foreground">Failed</div>
-            </div>
-          </Card>
-          <Card className="p-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold">
-                {scheduledTweets.length}
-              </div>
-              <div className="text-sm text-muted-foreground">Total</div>
-            </div>
+            </CardHeader>
+            
+            <CardContent className="p-3">
+              {view === 'month' && renderMonthView()}
+              {view === 'week' && renderWeekView()}
+              {view === 'day' && renderDayView()}
+              {view === 'agenda' && renderAgendaView()}
+            </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* Calendar Controls */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Select value={view} onValueChange={(value: CalendarView) => setView(value)}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="month">Month</SelectItem>
-                  <SelectItem value="week">Week</SelectItem>
-                  <SelectItem value="day">Day</SelectItem>
-                  <SelectItem value="agenda">Agenda</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => navigateCalendar('prev')}>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>
-                  Today
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => navigateCalendar('next')}>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+      {/* Right Panel for Tweet Details */}
+      <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
+        {selectedTweet ? (
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <div className="flex items-center justify-between p-3 border-b">
+              <h2 className="text-base font-semibold">Tweet Details</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClosePanel}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
             
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="h-5 w-5" />
-              <span className="font-semibold">
-                {view === 'month' && format(currentDate, 'MMMM yyyy')}
-                {view === 'week' && `Week of ${format(startOfWeek(currentDate), 'MMM d')}`}
-                {view === 'day' && format(currentDate, 'MMMM d, yyyy')}
-                {view === 'agenda' && 'Upcoming Tweets'}
-              </span>
+            {/* Content - Compact layout */}
+            <div className="flex-1 p-3 space-y-3 overflow-y-auto">
+              <div className="flex items-center gap-2">
+                <Badge className={statusColors[selectedTweet.status]}>
+                  {selectedTweet.status}
+                </Badge>
+                {selectedTweet.isThread && (
+                  <Badge variant="outline" className="text-xs">
+                    <MessageSquare className="h-3 w-3 mr-1" />
+                    Thread
+                  </Badge>
+                )}
+              </div>
+              
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Scheduled</p>
+                <p className="text-sm font-medium">
+                  {format(new Date(selectedTweet.scheduledAt), 'MMM d, h:mm a')}
+                </p>
+              </div>
+              
+              {selectedTweet.toolUsed && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Tool</p>
+                  <p className="text-sm">{selectedTweet.toolUsed}</p>
+                </div>
+              )}
+              
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Content</p>
+                <div className="bg-gray-50 rounded p-2">
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{selectedTweet.content}</p>
+                </div>
+              </div>
+              
+              {selectedTweet.isThread && selectedTweet.threadParts && selectedTweet.threadParts.length > 1 && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Thread ({selectedTweet.threadParts.length} parts)</p>
+                  <div className="space-y-1">
+                    {selectedTweet.threadParts.slice(0, 3).map((part, index) => (
+                      <div key={index} className="bg-gray-50 rounded p-2">
+                        <p className="text-xs whitespace-pre-wrap leading-relaxed">{part}</p>
+                      </div>
+                    ))}
+                    {selectedTweet.threadParts.length > 3 && (
+                      <p className="text-xs text-muted-foreground">+{selectedTweet.threadParts.length - 3} more parts</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Fixed Actions at bottom */}
+            <div className="border-t p-3 space-y-2">
+              {selectedTweet.status === 'scheduled' && (
+                <Button 
+                  size="sm"
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  onClick={() => handleMarkAsPosted(selectedTweet.id)}
+                >
+                  ✓ Mark as Posted
+                </Button>
+              )}
+              {selectedTweet.status === 'posted' && (
+                <div className="text-center">
+                  <Badge className="bg-green-100 text-green-800">
+                    ✓ Already Posted
+                  </Badge>
+                </div>
+              )}
+              <Button 
+                size="sm"
+                className="w-full"
+                onClick={() => handleCopyTweet(selectedTweet.content)}
+              >
+                <Copy className="h-3 w-3 mr-1" />
+                Copy Tweet
+              </Button>
+              {selectedTweet.isThread && selectedTweet.threadParts && (
+                <Button 
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => handleCopyTweet(selectedTweet.threadParts!.join('\n\n---\n\n'))}
+                >
+                  <Copy className="h-3 w-3 mr-1" />
+                  Copy Thread
+                </Button>
+              )}
             </div>
           </div>
-        </CardHeader>
-        
-        <CardContent>
-          {view === 'month' && renderMonthView()}
-          {view === 'week' && renderWeekView()}
-          {view === 'day' && renderDayView()}
-          {view === 'agenda' && renderAgendaView()}
-        </CardContent>
-      </Card>
-
-      {/* Instructions */}
-      <Card>
-        <CardContent className="p-4">
-          <p className="text-sm text-muted-foreground">
-            <strong>Quick actions:</strong> Use the view selector to switch between Month, Week, Day, and Agenda views. 
-            Click on any date in month view to see detailed tweets for that day.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Event Legend */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Legend</CardTitle>
-          <CardDescription>Understanding tweet status colors</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <div className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">Scheduled</div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-center p-4">
+            <div className="text-gray-400 mb-2">
+              <MessageSquare className="h-8 w-8 mx-auto" />
             </div>
-            <div className="flex items-center gap-2">
-              <div className="px-2 py-1 rounded text-xs bg-green-100 text-green-800">Posted</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="px-2 py-1 rounded text-xs bg-red-100 text-red-800">Failed</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="px-2 py-1 rounded text-xs bg-amber-100 text-amber-800">Cancelled</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm">🧵 = Thread</span>
-            </div>
+            <h3 className="text-base font-semibold text-gray-900 mb-1">Tweet Details</h3>
+            <p className="text-sm text-gray-600">
+              Click any tweet to view details
+            </p>
           </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-} 
+        )}
+      </div>
+    </div>   )
+ }

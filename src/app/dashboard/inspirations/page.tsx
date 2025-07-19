@@ -181,11 +181,43 @@ const EditorPanel = () => {
     }
   };
 
-  const handleSaveContent = () => {
-    console.log('Saving content:', currentContent);
-    toast.success('Content saved to library!');
-  };
+  const handleSaveContent = async () => {
+    if (!currentContent.trim()) {
+      toast.error("No content to save");
+      return;
+    }
 
+    try {
+      const userId = "user-placeholder"; // TODO: Replace with actual user ID from auth
+      
+      const response = await fetch('/api/saved-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          content: currentContent,
+          originalContent: originalTweet?.text || currentContent,
+          toolUsed: 'Inspiration Editor',
+          chatHistory: [],
+          tags: ['inspiration', 'edited'],
+          source: 'inspiration_page'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        toast.success("💾 Content saved to generated content library!");
+      } else {
+        throw new Error(result.error || 'Failed to save content');
+      }
+    } catch (error) {
+      console.error('Save failed:', error);
+      toast.error("Failed to save content. Please try again.");
+    }
+  };
   const handleScheduleTweet = () => {
     setIsScheduleModalOpen(true);
   };
@@ -388,6 +420,12 @@ const InspirationsPage = () => {
       
       console.log('🔥 Fetching enhanced inspiration feed...')
       
+      // Clear cache if force refresh
+      if (forceRefresh) {
+        sessionStorage.removeItem('inspirationCache')
+        sessionStorage.removeItem('inspirationCacheTimestamp')
+      }
+      
       const refreshParam = forceRefresh ? '&refresh=true' : ''
       const response = await fetch(`/api/inspiration/feed?limit=50${refreshParam}`)
       const data: ApiResponse = await response.json()
@@ -396,10 +434,20 @@ const InspirationsPage = () => {
         throw new Error(data.error || 'Failed to fetch tweets')
       }
       
-      setTweets(data.data.tweets || [])
-      setStats(data.data.stats || {})
+      const tweetsData = data.data.tweets || []
+      const statsData = data.data.stats || {}
       
-      console.log(`✅ Loaded ${data.data.tweets.length} tweets with ${data.data.stats.inspirationAccounts} inspiration accounts`)
+      // Cache the data
+      sessionStorage.setItem('inspirationCache', JSON.stringify({
+        tweets: tweetsData,
+        stats: statsData
+      }))
+      sessionStorage.setItem('inspirationCacheTimestamp', Date.now().toString())
+      
+      setTweets(tweetsData)
+      setStats(statsData)
+      
+      console.log(`✅ Loaded ${tweetsData.length} tweets with ${statsData.inspirationAccounts} inspiration accounts`)
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load tweets'
@@ -410,10 +458,13 @@ const InspirationsPage = () => {
       setLoading(false)
     }
   }
-
   const clearSeenHistory = async () => {
     try {
       setLoading(true)
+      
+      // Clear cache first
+      sessionStorage.removeItem('inspirationCache')
+      sessionStorage.removeItem('inspirationCacheTimestamp')
       
       const response = await fetch('/api/inspiration/feed', {
         method: 'POST',
@@ -435,12 +486,34 @@ const InspirationsPage = () => {
       setLoading(false)
     }
   }
-
-  // Initial load
+  // Initial load with caching
   useEffect(() => {
-    fetchTweets()
+    const loadCachedOrFetch = async () => {
+      // Check if we have cached data
+      const cachedData = sessionStorage.getItem('inspirationCache')
+      const cachedTimestamp = sessionStorage.getItem('inspirationCacheTimestamp')
+      
+      if (cachedData && cachedTimestamp) {
+        const cacheAge = Date.now() - parseInt(cachedTimestamp)
+        const cacheAgeMinutes = cacheAge / (1000 * 60)
+        
+        // Use cache if less than 30 minutes old
+        if (cacheAgeMinutes < 30) {
+          console.log('📦 Loading cached inspiration content...')
+          const parsedData = JSON.parse(cachedData)
+          setTweets(parsedData.tweets || [])
+          setStats(parsedData.stats || {})
+          setLoading(false)
+          return
+        }
+      }
+      
+      // Fetch fresh data if no cache or cache expired
+      await fetchTweets()
+    }
+    
+    loadCachedOrFetch()
   }, [])
-
   const formatCount = (count: number): string => {
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`
     if (count >= 1000) return `${(count / 1000).toFixed(1)}K`

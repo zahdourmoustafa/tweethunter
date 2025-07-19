@@ -4,13 +4,27 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
 import { serverEnv } from "@/config/env.server";
 
+// Automatically detect the correct base URL
+function getBaseURL() {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  if (process.env.BETTER_AUTH_URL) {
+    return process.env.BETTER_AUTH_URL;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('BETTER_AUTH_URL must be set in production');
+  }
+  return 'http://localhost:3000';
+}
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
   }),
   
   secret: serverEnv.BETTER_AUTH_SECRET,
-  baseURL: serverEnv.BETTER_AUTH_URL,
+  baseURL: getBaseURL(),
   
   emailAndPassword: {
     enabled: false, // We only want Twitter OAuth

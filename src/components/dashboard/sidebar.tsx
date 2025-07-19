@@ -16,7 +16,8 @@ import {
   Twitter,
   Calendar,
   Wand2,
-  Target
+  Target,
+  PlusCircle
 } from "lucide-react";
 import { APP_CONFIG } from "@/lib/constants";
 
@@ -109,6 +110,17 @@ export function DashboardSidebar() {
 
         <Separator className="my-4" />
 
+        <Button
+          variant="default"
+          className="w-full justify-start mb-4"
+          asChild
+        >
+          <Link href="/create-post">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Create Post
+          </Link>
+        </Button>
+
         {/* Quick Actions */}
         <div className="space-y-2">
           <p className="px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -120,8 +132,7 @@ export function DashboardSidebar() {
               Find Tweets
             </Link>
           </Button>
-        </div>
-      </ScrollArea>
+        </div>      </ScrollArea>
 
       {/* Footer */}
       <div className="border-t p-4">

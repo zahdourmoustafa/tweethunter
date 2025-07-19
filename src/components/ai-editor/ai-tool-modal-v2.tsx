@@ -59,7 +59,7 @@ export const AIToolModalV2 = ({
   const [inputMessage, setInputMessage] = useState("");
   const [currentGeneration, setCurrentGeneration] = useState("");
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isAutoSaving, setIsAutoSaving] = useState(false);
+
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const { 
@@ -114,20 +114,8 @@ export const AIToolModalV2 = ({
     scrollToBottom();
   }, [messages, isGenerating]);
 
-  // Auto-save conversation state when messages or generation changes
-  useEffect(() => {
-    if (onSave && messages.length > 0 && currentGeneration) {
-      // Debounce the save to avoid too many calls
-      const saveTimer = setTimeout(() => {
-        setIsAutoSaving(true);
-        onSave(messages, currentGeneration);
-        setTimeout(() => setIsAutoSaving(false), 500);
-      }, 1000);
-
-      return () => clearTimeout(saveTimer);
-    }
-  }, [messages, currentGeneration, onSave]);
-
+  // Manual save only - removed auto-save functionality
+  // Users must click the save button to persist changes
   /**
    * Clean and format AI response (simplified since new AI agent returns clean content)
    */
@@ -381,9 +369,7 @@ export const AIToolModalV2 = ({
                 <DialogTitle className="text-sm sm:text-base font-medium truncate">{toolName}</DialogTitle>
                 <p className="text-xs text-gray-600 truncate">
                   {toolDescription}
-                  {isAutoSaving && <span className="ml-2 text-green-600">• Auto-saving...</span>}
-                </p>
-              </div>
+                </p>              </div>
             </div>
             <div className="flex items-center gap-1 shrink-0 ml-2">
               <Button 

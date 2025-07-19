@@ -6,7 +6,6 @@ function validateServerEnv() {
   const requiredVars = [
     'DATABASE_URL',
     'BETTER_AUTH_SECRET', 
-    'BETTER_AUTH_URL',
     'TWITTER_CLIENT_ID',
     'TWITTER_CLIENT_SECRET',
     'OPENAI_API_KEY',
@@ -28,7 +27,7 @@ function validateServerEnv() {
   return {
     DATABASE_URL: process.env.DATABASE_URL!,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET!,
-    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL!,
+    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL!, // Optional now, kept for backward compatibility
     TWITTER_CLIENT_ID: process.env.TWITTER_CLIENT_ID!,
     TWITTER_CLIENT_SECRET: process.env.TWITTER_CLIENT_SECRET!,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY!,

@@ -122,8 +122,23 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error creating voice model:', error);
+    
+    // Add detailed error logging for production debugging
+    const errorDetails = {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      nodeEnv: process.env.NODE_ENV,
+      grokApiKeyExists: !!process.env.GROK_API_KEY,
+    };
+    
+    console.error('Detailed error info:', errorDetails);
+    
     return NextResponse.json(
-      { error: 'Failed to create voice model' },
+      { 
+        error: 'Failed to create voice model',
+        details: process.env.NODE_ENV === 'development' ? errorDetails : undefined
+      },
       { status: 500 }
     );
   }

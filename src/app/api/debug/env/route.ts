@@ -1,27 +1,57 @@
-import { NextResponse } from 'next/server';
-import { env } from '@/config/env';
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { grokClient, GROK_MODEL } from '@/lib/grok';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    return NextResponse.json({
-      status: 'success',
-      environment: {
-        NODE_ENV: env.NODE_ENV,
-        hasOpenAI: !!env.OPENAI_API_KEY,
-        openAIKeyLength: env.OPENAI_API_KEY?.length || 0,
-        openAIKeyPrefix: env.OPENAI_API_KEY?.substring(0, 10) + '...',
-        hasDatabase: !!env.DATABASE_URL,
-        hasTwitter: !!env.TWITTER_CLIENT_SECRET,
-        hasAuth: !!env.BETTER_AUTH_SECRET,
+    const session = await auth.api.getSession({ headers: request.headers });
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check environment variables
+    const envCheck = {
+      NODE_ENV: process.env.NODE_ENV,
+      GROK_API_KEY: process.env.GROK_API_KEY ? '✅ Set' : '❌ Missing',
+      GROK_API_KEY_LENGTH: process.env.GROK_API_KEY?.length || 0,
+      DATABASE_URL: process.env.DATABASE_URL ? '✅ Set' : '❌ Missing',
+      TWITTERAPI_IO_API_KEY: process.env.TWITTERAPI_IO_API_KEY ? '✅ Set' : '❌ Missing',
+    };
+
+    // Test Grok API connection
+    let grokTest = { status: 'Not tested' };
+    try {
+      if (process.env.GROK_API_KEY) {
+        const response = await grokClient.chat.completions.create({
+          model: GROK_MODEL,
+          messages: [{ role: 'user', content: 'Hello' }],
+          max_tokens: 10,
+        });
+        grokTest = { 
+          status: '✅ Working',
+          model: response.model,
+          usage: response.usage
+        };
+      } else {
+        grokTest = { status: '❌ No API key' };
       }
+    } catch (error) {
+      grokTest = { 
+        status: '❌ Failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+
+    return NextResponse.json({
+      environment: envCheck,
+      grokTest,
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
+    console.error('Debug endpoint error:', error);
     return NextResponse.json(
-      { 
-        status: 'error', 
-        message: 'Environment check failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { error: 'Failed to get debug info' },
       { status: 500 }
     );
   }

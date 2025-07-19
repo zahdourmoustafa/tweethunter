@@ -145,6 +145,12 @@ export class GrokVoiceAnalysisService {
         voiceModelId = createdModel.id;
       }
 
+      // Add warning if fallback was used
+      if (analysis.writingPersonality.primaryTone.includes('conversational') && 
+          analysis.formatSignatures.uniqueExpressions.includes('authentic voice')) {
+        warnings.push('Used fallback analysis due to API issues. Voice model quality may be reduced.');
+      }
+
       return {
         success: true,
         voiceModelId,
@@ -249,6 +255,13 @@ Return a detailed JSON analysis with these exact fields:
       console.log('Analyzing', tweetTexts.length, 'tweets');
       console.log('Sample tweet:', tweetTexts[0]?.substring(0, 100) + '...');
 
+      // Add API key validation
+      if (!process.env.GROK_API_KEY) {
+        throw new Error('GROK_API_KEY is not configured');
+      }
+
+      console.log('✅ Grok API key configured, making request...');
+
       const completion = await grokClient.chat.completions.create({
         model: GROK_MODEL,
         messages,
@@ -301,8 +314,15 @@ Return a detailed JSON analysis with these exact fields:
       console.error('❌ Grok voice analysis error:', {
         error: error instanceof Error ? error.message : error,
         stack: error instanceof Error ? error.stack : undefined,
+        // Add more debugging info
+        apiKeyExists: !!process.env.GROK_API_KEY,
+        apiKeyLength: process.env.GROK_API_KEY?.length || 0,
+        nodeEnv: process.env.NODE_ENV,
       });
-      throw error;
+      
+      // Create a fallback analysis if Grok fails
+      console.log('🔄 Creating fallback voice analysis...');
+      return this.createFallbackAnalysis(tweets);
     }
   }
 
@@ -334,6 +354,64 @@ Return a detailed JSON analysis with these exact fields:
     if (analysis.engagementStyle.storytellingApproach.length > 10) score += 5;
 
     return Math.min(Math.max(score, 0), 100);
+  }
+
+  /**
+   * Create a fallback analysis when Grok API fails
+   */
+  private createFallbackAnalysis(tweets: Tweet[]): GrokVoiceAnalysis {
+    console.log('Creating fallback analysis for', tweets.length, 'tweets');
+    
+    // Basic analysis based on tweet patterns
+    const tweetTexts = tweets.map(t => t.text);
+    const avgLength = tweetTexts.reduce((sum, text) => sum + text.length, 0) / tweetTexts.length;
+    
+    // Extract common patterns
+    const hasEmojis = tweetTexts.some(text => /\p{Emoji}/u.test(text));
+    const hasQuestions = tweetTexts.some(text => text.includes('?'));
+    const hasExclamations = tweetTexts.some(text => text.includes('!'));
+    
+    return {
+      writingPersonality: {
+        primaryTone: ['conversational', 'engaging'],
+        emotionalRange: 'moderate',
+        humorStyle: 'casual',
+        confidenceLevel: 'confident',
+        personalityTraits: ['authentic', 'relatable'],
+      },
+      tweetPatterns: {
+        averageLength: Math.round(avgLength),
+        preferredStructure: 'natural flow',
+        lineBreakStyle: 'as needed',
+        paragraphFlow: 'conversational',
+        threadUsage: 'occasional',
+      },
+      languageStyle: {
+        vocabularyLevel: 'accessible',
+        sentenceComplexity: 'moderate',
+        punctuationHabits: hasExclamations ? ['exclamation marks'] : ['standard'],
+        emojiUsage: hasEmojis ? 'moderate' : 'minimal',
+        slangAndCasualness: 'casual',
+      },
+      contentThemes: {
+        mainTopics: ['general', 'personal'],
+        expertiseAreas: ['general knowledge'],
+        personalSharing: 'moderate',
+        controversialTakes: 'balanced',
+      },
+      engagementStyle: {
+        questionUsage: hasQuestions ? 'frequent' : 'occasional',
+        callToActions: 'moderate',
+        communityInteraction: 'engaged',
+        storytellingApproach: 'conversational',
+      },
+      formatSignatures: {
+        openingPatterns: ['direct start'],
+        closingPatterns: ['natural end'],
+        transitionPhrases: ['and', 'but', 'so'],
+        uniqueExpressions: ['authentic voice'],
+      },
+    };
   }
 
   /**

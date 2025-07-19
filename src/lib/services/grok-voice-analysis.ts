@@ -285,15 +285,15 @@ Return a detailed JSON analysis with these exact fields:
       console.log('Response preview:', response.substring(0, 200) + '...');
 
       try {
-        // Extract JSON from response
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          console.error('❌ No JSON found in Grok response:', response);
-          throw new Error('No JSON found in Grok response');
+        // Try multiple JSON extraction strategies
+        let jsonStr = this.extractAndCleanJson(response);
+        if (!jsonStr) {
+          console.error('❌ No valid JSON found in Grok response');
+          throw new Error('No valid JSON found in response');
         }
 
         console.log('✅ JSON extracted, parsing...');
-        const analysis = JSON.parse(jsonMatch[0]) as GrokVoiceAnalysis;
+        const analysis = JSON.parse(jsonStr) as GrokVoiceAnalysis;
         
         console.log('✅ Voice analysis completed successfully');
         console.log('Analysis summary:', {
@@ -306,11 +306,10 @@ Return a detailed JSON analysis with these exact fields:
       } catch (parseError) {
         console.error('❌ Failed to parse Grok analysis JSON:', {
           error: parseError,
-          response: response.substring(0, 500),
+          responsePreview: response.substring(0, 500),
         });
         throw new Error('Failed to parse voice analysis from Grok');
-      }
-    } catch (error) {
+      }    } catch (error) {
       console.error('❌ Grok voice analysis error:', {
         error: error instanceof Error ? error.message : error,
         stack: error instanceof Error ? error.stack : undefined,
@@ -327,9 +326,72 @@ Return a detailed JSON analysis with these exact fields:
   }
 
   /**
-   * Calculate confidence score based on analysis quality
+   * Extract and clean JSON from response with multiple strategies
    */
-  private calculateConfidenceScore(tweetCount: number, analysis: GrokVoiceAnalysis): number {
+  private extractAndCleanJson(response: string): string | null {
+    // Strategy 1: Look for JSON in markdown code blocks first
+    const codeBlockMatch = response.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (codeBlockMatch) {
+      const jsonStr = codeBlockMatch[1].trim();
+      if (this.isValidJson(jsonStr)) return jsonStr;
+    }
+
+    // Strategy 2: Look for JSON between curly braces
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const jsonStr = jsonMatch[0];
+      if (this.isValidJson(jsonStr)) return jsonStr;
+    }
+
+    // Strategy 3: Try to repair common JSON issues
+    const trimmed = response.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      const repaired = this.repairJson(trimmed);
+      if (this.isValidJson(repaired)) return repaired;
+    }
+
+    return null;
+  }
+
+  /**
+   * Check if string is valid JSON
+   */
+  private isValidJson(str: string): boolean {
+    try {
+      JSON.parse(str);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Repair common JSON issues
+   */
+  private repairJson(jsonStr: string): string {
+    let repaired = jsonStr;
+
+    // Remove any leading/trailing whitespace or markdown
+    repaired = repaired.trim();
+
+    // Fix unescaped quotes in strings (basic approach)
+    repaired = repaired.replace(/([^\\])"([^"\\]*(?:\\.[^"\\]*)*)"([^"\\]*(?:\\.[^"\\]*)*)"/g, 
+      (match, prefix, content1, content2) => {
+        return prefix + '"' + content1.replace(/"/g, '\\"') + '"' + content2;
+      });
+
+    // Remove trailing commas
+    repaired = repaired.replace(/,\s*([}\]])/g, '$1');
+
+    // Ensure property names are quoted
+    repaired = repaired.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+
+    return repaired;
+  }
+
+  /**
+   * Calculate confidence score based on analysis quality
+   */  private calculateConfidenceScore(tweetCount: number, analysis: GrokVoiceAnalysis): number {
     let score = 0;
 
     // Base score from tweet count (40%)

@@ -20,7 +20,13 @@ export async function GET(request: NextRequest) {
     };
 
     // Test Grok API connection
-    let grokTest = { status: 'Not tested' };
+    let grokTest: {
+      status: string;
+      model?: string;
+      usage?: any;
+      error?: string;
+    } = { status: 'Not tested' };
+    
     try {
       if (process.env.GROK_API_KEY) {
         const response = await grokClient.chat.completions.create({

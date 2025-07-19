@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     console.log('NODE_ENV:', process.env.NODE_ENV);
 
     // Test Grok API connection
-    let testResult = { status: 'Not tested' };
+    let testResult: { status: string, [key: string]: any } = { status: 'Not tested' };
     
     try {
       if (!process.env.GROK_API_KEY) {
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
           keyExists: !!process.env.GROK_API_KEY,
           keyLength: process.env.GROK_API_KEY?.length || 0,
           nodeEnv: process.env.NODE_ENV,
-          errorType: error.constructor.name
+          errorType: error instanceof Error ? error.constructor.name : 'Unknown'
         }
       };
     }

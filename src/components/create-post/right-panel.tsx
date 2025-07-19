@@ -46,8 +46,8 @@ export function RightPanel() {
     setEditedContent('');
   };
 
-  const formatContentForDisplay = (content: string) => {
-    if (!content) return '';
+  const formatContentForDisplay = (content: string): string[] => {
+    if (!content) return [];
     
     // Split into tweets if it's a thread
     if (state.contentType === 'thread') {

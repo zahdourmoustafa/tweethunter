@@ -1160,7 +1160,7 @@ Additional instructions: ${options.customPrompt}`;
       [AITool.MoreAssertive]: ['Stronger tone', 'More confident', 'Add conviction'],
       [AITool.CopywritingTips]: ['More tips', 'Add examples', 'Make it actionable'],
       [AITool.KeepWriting]: ['Continue further', 'Add more detail', 'Expand the idea'],
-      [AITool.AddEmojis]: ['More emojis', 'Different emojis', 'Less emojis'],
+      [AITool.AddEmojis]: ['add More emojis', 'Different emojis', 'Less emojis'],
       [AITool.MakeShorter]: ['Even shorter', 'More concise', 'Keep essentials only'],
       [AITool.CreateCTA]: ['Stronger CTA', 'Different action', 'More urgent'],
       [AITool.ImproveTweet]: ['More polish', 'Better flow', 'Stronger impact'],

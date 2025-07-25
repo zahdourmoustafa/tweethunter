@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storytellerAgent } from '@/lib/ai/storyteller-agent';
-
+import { aiContentGenerator } from '@/lib/services/ai-content-generator';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -19,12 +18,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Refine content using conversational AI
-    const result = await storytellerAgent.refineContent(
+    const result = await aiContentGenerator.refineContent(
       currentContent,
       userMessage,
       conversationHistory
     );
-
     return NextResponse.json({
       success: true,
       data: result

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storytellerAgent } from '@/lib/ai/storyteller-agent';
-import { AITool, ContentType, VoiceGeneratorOptions } from '@/lib/types/aiTools';
-import { db } from '@/lib/db';
+import { aiContentGenerator } from '@/lib/services/ai-content-generator';
+import { AITool, ContentType, VoiceGeneratorOptions } from '@/lib/types/aiTools';import { db } from '@/lib/db';
 import { voiceModels } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
@@ -33,15 +32,29 @@ export async function POST(request: NextRequest) {
 
     // Handle VoiceGenerator tool specifically
     if (tool === AITool.VoiceGenerator) {
-      // Check authentication for voice generation
-      const session = await auth.api.getSession({ headers: request.headers });
+      // Check authentication for voice generation with timeout handling
+      let session;
+      try {
+        session = await auth.api.getSession({ headers: request.headers });
+      } catch (error) {
+        console.error('Database connection error:', error);
+        // Allow fallback for development/testing when DB is unavailable
+        if (process.env.NODE_ENV === 'development') {
+          session = { user: { id: 'dev-user-id' } };
+        } else {
+          return NextResponse.json(
+            { error: 'Database connection failed. Please try again later.' },
+            { status: 503 }
+          );
+        }
+      }
+      
       if (!session?.user?.id) {
         return NextResponse.json(
           { error: 'Authentication required for voice generation' },
           { status: 401 }
         );
       }
-
       const voiceOptions = options as VoiceGeneratorOptions;
       
       if (!voiceOptions.voiceModelId || !voiceOptions.contentType) {
@@ -80,25 +93,23 @@ export async function POST(request: NextRequest) {
       };
 
       // Generate content using voice model
-      const result = await storytellerAgent.generateContent(
+      const result = await aiContentGenerator.generateContent(
         tool as AITool,
         content,
         enhancedOptions
       );
-
       return NextResponse.json({
         success: true,
         data: result
       });
     }
 
-    // Generate content using our storyteller agent for other tools
-    const result = await storytellerAgent.generateContent(
+    // Generate content using our AI content generator for other tools
+    const result = await aiContentGenerator.generateContent(
       tool as AITool,
       content,
       options
     );
-
     return NextResponse.json({
       success: true,
       data: result

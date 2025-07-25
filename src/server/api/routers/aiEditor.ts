@@ -1,8 +1,7 @@
 import { router, protectedProcedure } from '@/server/trpc/trpc';
 import { z } from 'zod';
 import { AITool } from '@/lib/types/aiTools';
-import { storytellerAgent } from '@/lib/ai/storyteller-agent';
-
+import { aiContentGenerator } from '@/lib/services/ai-content-generator';
 export const aiEditorRouter = router({
   generate: protectedProcedure
     .input(
@@ -14,12 +13,11 @@ export const aiEditorRouter = router({
     )
     .mutation(async ({ input }: { input: { tool: AITool; originalTweet: string; customPrompt?: string } }) => {
       try {
-        const result = await storytellerAgent.generateContent(
+        const result = await aiContentGenerator.generateContent(
           input.tool,
           input.originalTweet,
           { customPrompt: input.customPrompt }
-        );
-        
+        );        
         return {
           success: true,
           content: result.content,

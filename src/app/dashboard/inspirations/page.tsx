@@ -427,7 +427,7 @@ const InspirationsPage = () => {
       }
       
       const refreshParam = forceRefresh ? '&refresh=true' : ''
-      const response = await fetch(`/api/inspiration/feed?limit=50${refreshParam}`)
+      const response = await fetch(`/api/inspiration/feed?limit=100${refreshParam}`)
       const data: ApiResponse = await response.json()
       
       if (!response.ok || data.status === 'error') {

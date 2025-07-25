@@ -12,6 +12,11 @@ import { Label } from '@/components/ui/label';
 
 const categories = [
   {
+    id: 'any' as const,
+    title: 'Any',
+    description: 'Let AI choose the best approach for your topic',
+  },
+  {
     id: 'case-study-client' as const,
     title: 'Case Study - Client',
     description: 'Success stories showcasing client results and transformations',

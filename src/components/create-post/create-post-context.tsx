@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export type PostCategory = 
+  | 'any'
   | 'case-study-client'
   | 'case-study-professional'
   | 'personal-story'

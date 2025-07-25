@@ -2,18 +2,21 @@
 // Only NEXT_PUBLIC_ prefixed variables are available on the client
 
 function getClientBaseURL() {
-  // In browser, use window.location
+  // Priority order: explicit NEXT_PUBLIC env var, then VERCEL_URL, then fallback
+  if (process.env.NEXT_PUBLIC_BETTER_AUTH_URL) {
+    return process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
+  }
+  
+  // For Vercel deployments, use VERCEL_URL
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  
+  // In browser, use current location as fallback
   if (typeof window !== 'undefined') {
     return `${window.location.protocol}//${window.location.host}`;
   }
   
-  // For SSR, use environment variables
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  if (process.env.NEXT_PUBLIC_BETTER_AUTH_URL) {
-    return process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
-  }
   if (process.env.NODE_ENV === 'production') {
     throw new Error('NEXT_PUBLIC_BETTER_AUTH_URL must be set in production');
   }

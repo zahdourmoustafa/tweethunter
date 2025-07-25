@@ -4,16 +4,24 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
 import { serverEnv } from "@/config/env.server";
 
-// Automatically detect the correct base URL
+// Automatically detect the correct base URL for server-side auth
 function getBaseURL() {
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
+  // Try NEXT_PUBLIC_ version first (works in both client and server)
+  if (process.env.NEXT_PUBLIC_BETTER_AUTH_URL) {
+    return process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
   }
+  // Legacy support for BETTER_AUTH_URL
   if (process.env.BETTER_AUTH_URL) {
     return process.env.BETTER_AUTH_URL;
   }
+  // Fallback to VERCEL_URL for automatic Vercel deployments
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('BETTER_AUTH_URL must be set in production');
+    console.error('❌ Production environment detected but no base URL configured');
+    console.error('Please set NEXT_PUBLIC_BETTER_AUTH_URL in your Vercel environment variables');
+    throw new Error('NEXT_PUBLIC_BETTER_AUTH_URL must be set in production');
   }
   return 'http://localhost:3000';
 }
